@@ -1,8 +1,8 @@
 package com.openlap.AnalyticsEngine.authconfig;
 
 
-import static com.openlap.AnalyticsEngine.authconfig.Constants.HEADER_STRING;
-import static com.openlap.AnalyticsEngine.authconfig.Constants.TOKEN_PREFIX;
+import static com.openlap.AnalyticsEngine.controller.Constants.HEADER_STRING;
+import static com.openlap.AnalyticsEngine.controller.Constants.TOKEN_PREFIX;
 
 import java.io.IOException;
 

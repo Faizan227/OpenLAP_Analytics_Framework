@@ -262,6 +262,5 @@
     <orderEntry type="library" name="Maven: org.jboss.logging:jboss-logging-processor:2.1.0.Final" level="project" />
     <orderEntry type="library" name="Maven: org.jboss.jdeparser:jdeparser:2.0.2.Final" level="project" />
     <orderEntry type="library" name="Maven: Arquillian JUnit:Release" level="project" />
-    <orderEntry type="library" name="Maven: Arquillian JUnit:Latest" level="project" />
   </component>
 </module>

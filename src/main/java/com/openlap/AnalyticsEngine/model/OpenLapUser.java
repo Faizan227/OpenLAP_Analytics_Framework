@@ -4,7 +4,9 @@ import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Entity
 public class OpenLapUser {
@@ -25,7 +27,7 @@ public class OpenLapUser {
     String lastname;
 
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER)
-    private Collection<Roles> roles;
+    private List<Roles> roles;
 
     //Set roles;
 
@@ -88,11 +90,11 @@ public class OpenLapUser {
         this.confirmpassword = confirmpassword;
     }
 
-    public Collection<Roles> getRoles() {
+    public List<Roles> getRoles() {
         return roles;
     }
 
-    public void setRoles(Collection<Roles> roles) {
+    public void setRoles(List<Roles> roles) {
         this.roles = roles;
     }
 

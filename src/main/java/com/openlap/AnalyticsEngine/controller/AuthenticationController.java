@@ -1,5 +1,6 @@
 package com.openlap.AnalyticsEngine.controller;
 
+import com.openlap.AnalyticsEngine.model.OpenLapUser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,7 +41,7 @@ public class AuthenticationController {
 	/**
 	 * User Authentication
 	 * 
-	 * @param LoginUser
+	 * @param loginUser
 	 *            This LoginUser Object contains email and password
 	 * 
 	 * @return After authentication returns the string JWT token.This returned JWT
@@ -48,6 +49,16 @@ public class AuthenticationController {
 	 */
 	@RequestMapping(value = "/get-token", method = RequestMethod.POST)
 	public ResponseEntity<?> login(@RequestBody LoginUser loginUser) throws AuthenticationException {
+
+		final Authentication authentication = authenticationManager
+				.authenticate(new UsernamePasswordAuthenticationToken(loginUser.getEmail(), loginUser.getPassword()));
+		SecurityContextHolder.getContext().setAuthentication(authentication);
+		final String token = jwtTokenUtil.generateToken(authentication);
+		return ResponseEntity.ok(new AuthToken(token));
+	}
+
+	@RequestMapping(value = "/login", method = RequestMethod.POST)
+	public ResponseEntity<?> login(@RequestBody OpenLapUser loginUser) throws AuthenticationException {
 
 		final Authentication authentication = authenticationManager
 				.authenticate(new UsernamePasswordAuthenticationToken(loginUser.getEmail(), loginUser.getPassword()));

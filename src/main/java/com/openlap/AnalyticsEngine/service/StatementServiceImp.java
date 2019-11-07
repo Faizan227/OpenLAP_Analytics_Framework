@@ -73,7 +73,6 @@ public class StatementServiceImp implements StatementService {
 	@Override
 	public OpenLAPDataSet getAllStatementsByCustomQuery(ObjectId organizationId, ObjectId lrsId,
 														QueryParameters queryParameters) throws JSONException, OpenLAPDataColumnException, JsonProcessingException {
-		System.out.println(queryParameters);
 
 		//MultiValueMap map = new MultiValueMap();
 
@@ -119,7 +118,6 @@ public class StatementServiceImp implements StatementService {
 		List<Statement>  allStatements = statementsRepo.findDataByCustomQuery(queryObject, statementDurationObject,
 				parametersToReceiveObject, organizationId, lrsId);
 
-		System.out.println("All statements: " + allStatements);
 		for (Statement statment : allStatements) {
 
 			/**

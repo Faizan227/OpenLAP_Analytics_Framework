@@ -17,6 +17,11 @@ import org.springframework.stereotype.Service;
 import com.openlap.AnalyticsEngine.model.User;
 import com.openlap.AnalyticsEngine.repo.UserRepo;
 
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.Persistence;
+import javax.transaction.TransactionManager;
+
 @Service(value = "userService")
 public class UserService implements UserDetailsService {
 	private static final Logger logger = LoggerFactory.getLogger(UserService.class);

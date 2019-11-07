@@ -12,6 +12,7 @@ import com.openlap.AnalyticsEngine.dto.Request.QuestionSaveRequest;
 import com.openlap.AnalyticsEngine.dto.Response.*;
 import com.openlap.AnalyticsEngine.dto.WrapperRequest;
 import com.openlap.AnalyticsEngine.model.*;
+import com.openlap.AnalyticsMethods.services.AnalyticsMethodsClassPathLoader;
 import com.openlap.AnalyticsModules.model.OpenLAPDataSetMergeMapping;
 import com.openlap.AnalyticsMethods.model.AnalyticsMethods;
 import com.openlap.AnalyticsMethods.services.AnalyticsMethodsService;
@@ -35,15 +36,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -58,7 +54,6 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class AnalyticsEngineService {
@@ -92,9 +87,6 @@ public class AnalyticsEngineService {
 
     @Autowired
     private AnalyticsMethodsService analyticsMethodsService;
-
-    @Value("${visualizerURL}")
-    private String visualizationURL;
 
     //region Questions
     public Question getQuestionById(String id){
@@ -416,7 +408,7 @@ public class AnalyticsEngineService {
                 else{
                     String userID = previewRequest.getAdditionalParams().get("rid").toString().toUpperCase();
                     //curIndQuery = curIndQuery.replace("xxxridxxx", userID);
-                }
+                    }
             }*/
 
                 OpenLAPDataSet queryDataSet = statementServiceImp.getAllStatementsByCustomQuery(organizationId, lrsId, curIndQuery);
@@ -434,7 +426,6 @@ public class AnalyticsEngineService {
                 try {
                     String methodValidJSON = performPutRequest(baseUrl + "/AnalyticsMethod/AnalyticsMethods/" + previewRequest.getAnalyticsMethodId().get("0") + "/validateConfiguration", queryToMethodConfig.toString());
 
-                    System.out.println(methodValidJSON);
 
                     OpenLAPDataSetConfigValidationResult methodValid = mapper.readValue(methodValidJSON, OpenLAPDataSetConfigValidationResult.class);
 
@@ -455,7 +446,8 @@ public class AnalyticsEngineService {
                 //Applying the analytics method
                 OpenLAPDataSet analyzedDataSet = null;
                 try {
-                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"));
+                    AnalyticsMethodsClassPathLoader classloaderPath = analyticsMethodsService.getFolderNameFromResources();
+                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"),classloaderPath);
                     String rawMethodParams = previewRequest.getMethodInputParams().containsKey("0") ? previewRequest.getMethodInputParams().get("0") : "";
                     Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
 
@@ -536,14 +528,6 @@ public class AnalyticsEngineService {
                 response.setSuccess(true);
                 response.setErrorMessage("");
                 response.setVisualizationCode(encodeURIComponent(indicatorCode));
-
-                //response.setQuery(previewRequest.getQuery());
-                //response.setAnalyticsMethodId(previewRequest.getAnalyticsMethodId());
-                //response.setVisualizationFrameworkId(previewRequest.getVisualizationFrameworkId());
-                //response.setVisualizationMethodId(previewRequest.getVisualizationMethodId());
-                //response.setIndicatorToAnalyticsMethodMapping(queryToMethodConfig);
-                //response.setAnalyticsMethodToVisualizationMapping(methodToVisConfig);
-
 
             log.info("[Preview-Simple-End],count:"+localPreviewCount+",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime));
 
@@ -637,7 +621,9 @@ public class AnalyticsEngineService {
                     //Applying the analytics method
                     OpenLAPDataSet analyzedDataSet = null;
                     try {
-                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(indicatorName));
+                        AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
+
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(indicatorName), classPathLoader);
                         String rawMethodParams = previewRequest.getMethodInputParams().containsKey(indicatorName) ? previewRequest.getMethodInputParams().get(indicatorName) : "";
 
                         Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
@@ -701,7 +687,7 @@ public class AnalyticsEngineService {
 
                     String visRequestJSON = mapper.writeValueAsString(visRequest);
 
-                    ValidateVisualizationTypeConfigurationResponse visValid = performJSONPostRequest(visualizationURL + "/frameworks/" + previewRequest.getVisualizationLibraryId() + "/methods/" + previewRequest.getVisualizationTypeId() + "/validateConfiguration", visRequestJSON, ValidateVisualizationTypeConfigurationResponse.class);
+                    ValidateVisualizationTypeConfigurationResponse visValid = performJSONPostRequest(baseUrl + "/frameworks/" + previewRequest.getVisualizationLibraryId() + "/methods/" + previewRequest.getVisualizationTypeId() + "/validateConfiguration", visRequestJSON, ValidateVisualizationTypeConfigurationResponse.class);
 
                     if (!visValid.isConfigurationValid()){
                         response.setSuccess(false);
@@ -727,7 +713,7 @@ public class AnalyticsEngineService {
 
                     String visualRequestJSON = mapper.writeValueAsString(visualRequest);
 
-                    GenerateVisualizationCodeResponse visualResponse = performJSONPostRequest(visualizationURL + "/generateVisualizationCode", visualRequestJSON, GenerateVisualizationCodeResponse.class);
+                    GenerateVisualizationCodeResponse visualResponse = performJSONPostRequest(baseUrl + "/generateVisualizationCode", visualRequestJSON, GenerateVisualizationCodeResponse.class);
 
                     indicatorCode = visualResponse.getVisualizationCode();
                 } catch (Exception exc) {
@@ -823,7 +809,8 @@ public class AnalyticsEngineService {
                     //Applying the analytics method
                     OpenLAPDataSet singleAnalyzedDataSet = null;
                     try {
-                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(datasetId));
+                        AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(datasetId), classPathLoader);
                         String rawMethodParams = previewRequest.getMethodInputParams().containsKey(datasetId) ? previewRequest.getMethodInputParams().get(datasetId) : "";
                         Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
 
@@ -904,7 +891,8 @@ public class AnalyticsEngineService {
                 //Applying the final analysis whose configuration is stored always with id "0"
                 OpenLAPPortConfig finalQueryToMethodConfig = previewRequest.getQueryToMethodConfig().get("0");
                 try {
-                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"));
+                    AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"),classPathLoader);
                     String rawMethodParams = previewRequest.getMethodInputParams().containsKey("0")?previewRequest.getMethodInputParams().get("0"):"";
                     Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
 
@@ -941,7 +929,7 @@ public class AnalyticsEngineService {
                     ValidateVisualizationTypeConfigurationRequest visRequest = new ValidateVisualizationTypeConfigurationRequest();
                     visRequest.setConfigurationMapping(methodToVisConfig);
                     String visRequestJSON = mapper.writeValueAsString(visRequest);
-                    ValidateVisualizationTypeConfigurationResponse visValid = performJSONPostRequest(visualizationURL + "/frameworks/" + previewRequest.getVisualizationLibraryId() + "/methods/" + previewRequest.getVisualizationTypeId() + "/validateConfiguration", visRequestJSON, ValidateVisualizationTypeConfigurationResponse.class);
+                    ValidateVisualizationTypeConfigurationResponse visValid = performJSONPostRequest(baseUrl + "/frameworks/" + previewRequest.getVisualizationLibraryId() + "/methods/" + previewRequest.getVisualizationTypeId() + "/validateConfiguration", visRequestJSON, ValidateVisualizationTypeConfigurationResponse.class);
 
                     if (!visValid.isConfigurationValid()) {
                         response.setSuccess(false);
@@ -968,7 +956,7 @@ public class AnalyticsEngineService {
 
                     String visualRequestJSON = mapper.writeValueAsString(visualRequest);
 
-                    GenerateVisualizationCodeResponse visualResponse = performJSONPostRequest(visualizationURL + "/generateVisualizationCode", visualRequestJSON, GenerateVisualizationCodeResponse.class);
+                    GenerateVisualizationCodeResponse visualResponse = performJSONPostRequest(baseUrl + "/generateVisualizationCode", visualRequestJSON, GenerateVisualizationCodeResponse.class);
 
                     indicatorCode = visualResponse.getVisualizationCode();
                 } catch (Exception exc) {
@@ -1477,8 +1465,7 @@ public class AnalyticsEngineService {
 
     private String getIndicatorRequestCode(Triad triad) {
         String visFrameworkScript = "";
-
-        String visualizationURL= "http://localhost:8000/visualizer";
+        String visualizationURL= "http://localhost:8090/visualizer";
         try{
             visFrameworkScript = performGetRequest(visualizationURL + "/frameworks/" + triad.getVisualizationReference().getLibraryId() + "/methods/"+ triad.getVisualizationReference().getTypeId() + "/frameworkScript");
             visFrameworkScript = decodeURIComponent(visFrameworkScript);
@@ -1618,14 +1605,16 @@ public class AnalyticsEngineService {
         return methodParams;
     }
 
-    public List<OpenLAPColumnConfigData> getVisualizationMethodInputs(String frameworkId, long methodId, HttpServletRequest request) {
+    public List<OpenLAPColumnConfigData> getVisualizationMethodInputs(String frameworkId, String methodId, HttpServletRequest request) {
+
+        String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         List<OpenLAPColumnConfigData> methodInputs = null;
 
         try {
             ObjectMapper mapper = new ObjectMapper();
 
 
-            String methodInputsJSON = performGetRequest(visualizationURL + "/frameworks/"+frameworkId+"/methods/"+methodId+"/configuration");
+            String methodInputsJSON = performGetRequest(baseUrl + "/frameworks/"+frameworkId+"/methods/"+methodId+"/configuration");
             VisualizationTypeConfigurationResponse visResponse = mapper.readValue(methodInputsJSON, VisualizationTypeConfigurationResponse.class);
 
             methodInputs = visResponse.getTypeConfiguration().getInput().getColumnsConfigurationData();
@@ -1725,7 +1714,7 @@ public class AnalyticsEngineService {
         return openLapUser;
     }
 
-    public UserDetails loadUserByUsername(String email) {
+/*    public UserDetails loadUserByUsername(String email) {
         // TODO Auto-generated method stub
         OpenLapUser user = em.find(OpenLapUser.class, email);
         if (user == null) {
@@ -1739,7 +1728,7 @@ public class AnalyticsEngineService {
         return roles.stream()
                 .map(role -> new SimpleGrantedAuthority(role.getName()))
                 .collect(Collectors.toList());
-    }
+    }*/
     //HTTP Section
 
     public String performGetRequest(String url) throws Exception {

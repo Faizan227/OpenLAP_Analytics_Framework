@@ -1,9 +1,9 @@
 package com.openlap.AnalyticsEngine.authconfig;
 
 
-import static com.openlap.AnalyticsEngine.authconfig.Constants.ACCESS_TOKEN_VALIDITY_SECONDS;
-import static com.openlap.AnalyticsEngine.authconfig.Constants.AUTHORITIES_KEY;
-import static com.openlap.AnalyticsEngine.authconfig.Constants.SIGNING_KEY;
+import static com.openlap.AnalyticsEngine.controller.Constants.ACCESS_TOKEN_VALIDITY_SECONDS;
+import static com.openlap.AnalyticsEngine.controller.Constants.AUTHORITIES_KEY;
+import static com.openlap.AnalyticsEngine.controller.Constants.SIGNING_KEY;
 
 import java.io.Serializable;
 import java.util.Arrays;

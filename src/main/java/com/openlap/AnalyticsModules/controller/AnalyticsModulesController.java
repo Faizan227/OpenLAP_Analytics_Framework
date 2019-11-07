@@ -81,7 +81,7 @@ public class AnalyticsModulesController {
     public
     @ResponseBody
     List<Triad> getTriadsByUser(@RequestParam String userName) {
-        return modulesService.getAllTriads();
+        return modulesService.getTriadsByUser(userName);
     }
 
     @RequestMapping(

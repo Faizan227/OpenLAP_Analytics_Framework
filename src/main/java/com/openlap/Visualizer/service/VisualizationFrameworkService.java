@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.annotation.PostConstruct;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
@@ -56,12 +55,7 @@ public class VisualizationFrameworkService {
     EntityManager em = factory.createEntityManager();
 
    ObjectMapper objectMapper;
- /*
-    @PostConstruct
-    public void initializeVisualizationLibraryService() {
-        objectMapper = new ObjectMapper();
-    }
-*/
+
     /**
      * @return The list of VisualizationFrameworks existing in the system
      */
@@ -333,8 +327,6 @@ public class VisualizationFrameworkService {
         if (newAttributes.getName() != null && !newAttributes.getName().isEmpty())
             visualizationType.setName(newAttributes.getName());
 
-
-        //List<VisualizationSuggestion> updatedVisualizationSuggestions = new ArrayList<>();
         // update the implementing class
         if (newAttributes.getImplementingClass() != null && !newAttributes.getImplementingClass().isEmpty())
             visualizationType.setImplementingClass(newAttributes.getImplementingClass());

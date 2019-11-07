@@ -1,5 +1,6 @@
 package com.openlap.AnalyticsMethods.services;
 
+
 import com.openlap.AnalyticsMethods.exceptions.AnalyticsMethodLoaderException;
 import com.openlap.AnalyticsMethods.exceptions.AnalyticsMethodNotFoundException;
 import com.openlap.AnalyticsMethods.exceptions.AnalyticsMethodsBadRequestException;
@@ -15,10 +16,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.PostConstruct;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
@@ -35,6 +41,7 @@ import java.util.List;
  */
 
 @Service
+//@ContextConfiguration(classes = OpenLAPAnalyaticsFramework.class)
 public class AnalyticsMethodsService {
 
     // Strings for method names
@@ -43,16 +50,39 @@ public class AnalyticsMethodsService {
     private static final String INPUT_PORTS = "input";
     private static final String OUTPUT_PORTS = "output";
     private static final Logger log =  LoggerFactory.getLogger(OpenLAPAnalyaticsFramework.class);
-    @Value("${analyticsMethodsJarsFolder}")
+
+    @Value("${analytics.jars.folder}")
     String analyticsMethodsJarsFolder;
-   // @Autowired
-   // AnalyticsMethodsrepo analyticsMethodsRepository;
+
+
+
     @Autowired
     AnalyticsMethodsUploadValidator validator;
 
+    public AnalyticsMethodsClassPathLoader getFolderNameFromResources()
+    {
+        System.out.println(analyticsMethodsJarsFolder);
+        AnalyticsMethodsClassPathLoader classPathLoader =  new AnalyticsMethodsClassPathLoader(analyticsMethodsJarsFolder);
+      return classPathLoader;
+    }
+
+    public AnalyticsMethod loadAnalyticsMethodInstance(String analyticsMethodId, AnalyticsMethodsClassPathLoader classPathLoader) throws AnalyticsMethodLoaderException {
+        AnalyticsMethods analyticsMethodMetadata = em.find(AnalyticsMethods.class, analyticsMethodId);
+        if (analyticsMethodMetadata == null || analyticsMethodId == null) {
+            throw new AnalyticsMethodNotFoundException("Analytics Method with id not found: " + analyticsMethodId);
+        } else {
+
+            AnalyticsMethod method;
+
+           // AnalyticsMethodsClassPathLoader classPathLoader =  new AnalyticsMethodsClassPathLoader(analyticsMethodsJarsFolder);
+            method = classPathLoader.loadClass(analyticsMethodMetadata.getImplementing_class());
+            return method;
+        }
+    }
     TransactionManager tm = com.arjuna.ats.jta.TransactionManager.transactionManager();
     EntityManagerFactory factory = Persistence.createEntityManagerFactory("OpenLAP");
     EntityManager em = factory.createEntityManager();
+
 
     /**
      * Lists all the Metadata of the  AnalyticsMethods available
@@ -203,7 +233,8 @@ public class AnalyticsMethodsService {
             String analyticsMethodId, OpenLAPPortConfig configuration) throws AnalyticsMethodLoaderException {
         //log.info("Attempting to validateConfiguration :" + configuration.getMapping()
         //        + "for method with id: " + analyticsMethodId);
-        AnalyticsMethod method = loadAnalyticsMethodInstance(analyticsMethodId);
+
+        AnalyticsMethod method = loadAnalyticsMethodInstance(analyticsMethodId, this.getFolderNameFromResources());
         return method.getInput().validateConfiguration(configuration);
     }
 
@@ -215,21 +246,19 @@ public class AnalyticsMethodsService {
      * @return A new instance of the specified Analytics Method.
      * @throws AnalyticsMethodLoaderException
      */
-    public AnalyticsMethod loadAnalyticsMethodInstance(String analyticsMethodId) throws AnalyticsMethodLoaderException {
+   /* public AnalyticsMethod loadAnalyticsMethodInstance(String analyticsMethodId) throws AnalyticsMethodLoaderException {
         AnalyticsMethods analyticsMethodMetadata = em.find(AnalyticsMethods.class, analyticsMethodId);
         if (analyticsMethodMetadata == null || analyticsMethodId ==null) {
             throw new AnalyticsMethodNotFoundException("Analytics Method with id not found: " + analyticsMethodId);
         } else {
 
             AnalyticsMethod method;
-            AnalyticsMethodsClassPathLoader classPathLoader =
-                    new AnalyticsMethodsClassPathLoader(analyticsMethodsJarsFolder + "/" + analyticsMethodMetadata.getFilename()
-                            + JAR_EXTENSION);
 
+            //AnalyticsMethodsClassPathLoader classPathLoader =  new AnalyticsMethodsClassPathLoader("./analyticsMethodsJars/" );
             method = classPathLoader.loadClass(analyticsMethodMetadata.getImplementing_class());
             return method;
-        }
-    }
+        }*/
+
 
     /**
      * Method that returns the OpenLAPColumnConfigData of the input ports of a specific AnalyticsMethods
@@ -252,7 +281,7 @@ public class AnalyticsMethodsService {
     }
 
     public List<OpenLAPDynamicParam> GetDynamicParamsForMethod(String id) {
-        AnalyticsMethod method = loadAnalyticsMethodInstance(id);
+        AnalyticsMethod method = loadAnalyticsMethodInstance(id, this.getFolderNameFromResources());
 
         return method.getParams().getParamsAsList(false);
     }
@@ -269,7 +298,7 @@ public class AnalyticsMethodsService {
     private List<OpenLAPColumnConfigData> getPortsForMethod(String id, String portParameter)
             throws AnalyticsMethodLoaderException {
 
-        AnalyticsMethod method = loadAnalyticsMethodInstance(id);
+        AnalyticsMethod method = loadAnalyticsMethodInstance(id, this.getFolderNameFromResources());
         //log.info("Attempting to return " + portParameter + " ports of the method with id {" + id + "}");
 
         List<OpenLAPColumnConfigData> ports;

@@ -49,6 +49,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		.formLogin()
 	    .loginPage("/login")
 	    .usernameParameter("email")
+				//.passwordParameter("password")
 	    .and()
 		.cors().and().csrf().disable().authorizeRequests()
 				.antMatchers("/v1/statements/**","/AnalyticsEngine/**","/frameworks/**","/AnalyticsMethod/**","/analyticsmodule/**","/v1/authenticate/*", "/v2/api-docs", "/swagger-resources/configuration/ui",
