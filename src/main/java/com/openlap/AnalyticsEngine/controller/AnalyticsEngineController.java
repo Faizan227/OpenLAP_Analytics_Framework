@@ -14,7 +14,10 @@ import com.openlap.Visualizer.dtos.response.VisualizationLibraryDetailsResponse;
 import com.openlap.Visualizer.dtos.response.VisualizationLibrariesDetailsResponse;
 
 import de.rwthaachen.openlap.dataset.OpenLAPColumnConfigData;
+import de.rwthaachen.openlap.dataset.OpenLAPDataSet;
 import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
+import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
+import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -188,6 +191,7 @@ public class AnalyticsEngineController {
         return analyticsEngineService.UserRegistration(openLapUser);
     }
 
+
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public
     @ResponseBody
@@ -266,4 +270,24 @@ public class AnalyticsEngineController {
         return analyticsEngineService.getQuestionRequestCode(questionId, request);
     }
 
+    @RequestMapping(value = {"/getallactivites"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallactivities() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallactivities();
+    }
+
+    @RequestMapping(value = {"/getallverbs"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallverbs() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallverbs();
+    }
+
+    @RequestMapping(value = {"/getallplatforms"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallplatforms() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallplatforms();
+    }
 }

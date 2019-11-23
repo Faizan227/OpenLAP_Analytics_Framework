@@ -3,10 +3,8 @@ package com.openlap.AnalyticsEngine.model;
 import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
-import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 @Entity
 public class OpenLapUser {
@@ -16,15 +14,15 @@ public class OpenLapUser {
     @Type(type = "objectid")
     String id;
 
-    String email;
+    private String email;
 
-    String password;
+    private String password;
 
-    String confirmpassword;
+    private String confirmpassword;
 
-    String firstname;
+    private String firstname;
 
-    String lastname;
+    private String lastname;
 
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER)
     private List<Roles> roles;
@@ -113,7 +111,7 @@ public class OpenLapUser {
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, email, password, confirmpassword, firstname, lastname);
+        return Objects.hash(id, email, password, confirmpassword, firstname, lastname, roles);
     }
 
     @Override

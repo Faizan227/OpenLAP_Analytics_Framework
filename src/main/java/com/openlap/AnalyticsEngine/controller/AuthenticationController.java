@@ -56,14 +56,4 @@ public class AuthenticationController {
 		final String token = jwtTokenUtil.generateToken(authentication);
 		return ResponseEntity.ok(new AuthToken(token));
 	}
-
-	@RequestMapping(value = "/login", method = RequestMethod.POST)
-	public ResponseEntity<?> login(@RequestBody OpenLapUser loginUser) throws AuthenticationException {
-
-		final Authentication authentication = authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(loginUser.getEmail(), loginUser.getPassword()));
-		SecurityContextHolder.getContext().setAuthentication(authentication);
-		final String token = jwtTokenUtil.generateToken(authentication);
-		return ResponseEntity.ok(new AuthToken(token));
-	}
 }

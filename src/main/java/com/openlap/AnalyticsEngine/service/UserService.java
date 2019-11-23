@@ -4,9 +4,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.openlap.AnalyticsEngine.model.OpenLapUser;
+import com.openlap.AnalyticsEngine.model.Roles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -23,10 +26,16 @@ import javax.persistence.Persistence;
 import javax.transaction.TransactionManager;
 
 @Service(value = "userService")
+@Primary
 public class UserService implements UserDetailsService {
 	private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+	TransactionManager tm = com.arjuna.ats.jta.TransactionManager.transactionManager();
+	EntityManagerFactory factory = Persistence.createEntityManagerFactory("OpenLAP");
+	EntityManager em = factory.createEntityManager();
+
 	@Autowired
-	private UserRepo userRepo;
+	OpenLAPUserService openLAPUserService;
+
 
 	@Autowired
 	private BCryptPasswordEncoder bcryptEncoder;
@@ -34,23 +43,25 @@ public class UserService implements UserDetailsService {
 	@Override
 	public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
 		// TODO Auto-generated method stub
-		User user = userRepo.findByEmail(email);
-		if (user == null) {
+
+		OpenLapUser openLapUser = openLAPUserService.loadUserByUsername(email);
+		if (openLapUser == null) {
 			logger.error("Invalid username or password.");
 			throw new UsernameNotFoundException("Invalid username or password.");
 		}
-		return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
-				getAuthority(user));
+		return new org.springframework.security.core.userdetails.User(openLapUser.getEmail(), openLapUser.getPassword(),
+				getAuthority(openLapUser));
 	}
 
-	private Set<SimpleGrantedAuthority> getAuthority(User user) {
+	private Set<SimpleGrantedAuthority> getAuthority(OpenLapUser openLapUser) {
 		Set<SimpleGrantedAuthority> authorities = new HashSet<>();
-		List<String> scopes = user.getScopes();
-		for (String scope : scopes) {
+		List<Roles> scopes = openLapUser.getRoles();
+		for (Roles scope : scopes) {
 			// authorities.add(new SimpleGrantedAuthority(role.getName()));
 			authorities.add(new SimpleGrantedAuthority("ROLE_" + scope));
 
 		}
 		return authorities;
 	}
+
 }

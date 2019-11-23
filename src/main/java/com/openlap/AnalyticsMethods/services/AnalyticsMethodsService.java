@@ -55,9 +55,15 @@ public class AnalyticsMethodsService {
     String analyticsMethodsJarsFolder;
 
 
+    //AnalyticsMethodsClassPathLoader classPathLoader = null;
 
     @Autowired
     AnalyticsMethodsUploadValidator validator;
+
+/*    @PostConstruct
+    public void loadJarFiles(){
+        classPathLoader =  new AnalyticsMethodsClassPathLoader(analyticsMethodsJarsFolder + "");
+    }*/
 
     public AnalyticsMethodsClassPathLoader getFolderNameFromResources()
     {
@@ -298,7 +304,7 @@ public class AnalyticsMethodsService {
     private List<OpenLAPColumnConfigData> getPortsForMethod(String id, String portParameter)
             throws AnalyticsMethodLoaderException {
 
-        AnalyticsMethod method = loadAnalyticsMethodInstance(id, this.getFolderNameFromResources());
+        AnalyticsMethod method = loadAnalyticsMethodInstance(id,this.getFolderNameFromResources());
         //log.info("Attempting to return " + portParameter + " ports of the method with id {" + id + "}");
 
         List<OpenLAPColumnConfigData> ports;

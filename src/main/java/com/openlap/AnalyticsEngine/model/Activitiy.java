@@ -1,10 +1,13 @@
 package com.openlap.AnalyticsEngine.model;
 
-import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import javax.persistence.Id;
+
 
 @Document(collection = "fullActivities")
 public class Activitiy {
+
 	@Id
 	public String id;
 	public String activityId;
@@ -14,6 +17,7 @@ public class Activitiy {
 	public Object description;
 	public Object extensions;
 	public String type;
+
 
 	public String getId() {
 		return id;

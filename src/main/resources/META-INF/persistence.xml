@@ -22,6 +22,7 @@
         <class>com.openlap.Visualizer.model.VisualizationLibrary</class>
         <class>com.openlap.Visualizer.model.VisualizationDataTransformerMethod</class>
         <class>com.openlap.Visualizer.model.VisualizationType</class>
+        <class>com.openlap.AnalyticsEngine.model.OpenLapUser</class>
 
         <properties>
             <property name="hibernate.transaction.jta.platform" value="JBossTS"/>
@@ -39,7 +40,6 @@
             <property name="spring.jpa.show-sql" value="false" />
             <property name="hibernate.ogm.mongodb.connection_timeout" value="5000" />
             <property name="hibernate.ogm.datastore.create_database" value="true" />
-
         </properties>
     </persistence-unit>
 </persistence>

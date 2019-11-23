@@ -6,6 +6,7 @@ import java.util.*;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mchange.v1.util.ArrayUtils;
+import com.openlap.AnalyticsEngine.dto.Platforms;
 import org.apache.commons.collections4.map.MultiValueMap;
 import org.apache.lucene.util.ArrayUtil;
 import org.bson.types.ObjectId;
@@ -32,6 +33,26 @@ public class StatementServiceImp implements StatementService {
 	@Autowired
 	private StatementRepo statementsRepo;
 
+	public OpenLAPDataSet getallplatforms(ObjectId organizationId, ObjectId lrsId)
+			throws JSONException, OpenLAPDataColumnException {
+		OpenLapDataConverter dataConveter = new OpenLapDataConverter();
+
+		ArrayList<Object> listOfplatforms = new ArrayList<Object>();
+		for (Platforms platforms : statementsRepo.findallplatformsByOrganizationAndLrs(organizationId, lrsId)){
+			String statement = new Gson().toJson(platforms.getStatement());
+			JSONObject statementObject = new JSONObject(statement);
+			JSONObject platformObject = statementObject.getJSONObject("context");
+
+			if (!listOfplatforms.contains(platformObject.get("platform"))) {
+				listOfplatforms.add(platformObject.get("platform"));
+				System.out.println(listOfplatforms);
+			}
+			break;
+		}
+		dataConveter.SetOpenLapDataColumn("Platform", OpenLAPColumnDataType.Text, true, listOfplatforms);
+		OpenLAPDataSet xApiPlatformDataset = dataConveter.getDataSet();
+		return xApiPlatformDataset;
+	}
 	@Override
 	public OpenLAPDataSet getAllVerbsFromStatements(ObjectId organizationId, ObjectId lrsId)
 			throws JSONException, OpenLAPDataColumnException {

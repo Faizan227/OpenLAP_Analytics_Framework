@@ -122,7 +122,7 @@ public class ActivityServiceImp implements ActivityService {
 
 	@Override
 	public OpenLAPDataSet getActivitiesExtensionContextValues(ObjectId OrganizationId, ObjectId lrsId,
-			String extensionId, String extensionContextKey) throws OpenLAPDataColumnException, JSONException {
+															  String extensionId, String extensionContextKey) throws OpenLAPDataColumnException, JSONException {
 		ArrayList<Object> listOfExtensionContextValues = new ArrayList<Object>();
 		for (Activitiy activity : activityRepo.findContextualFieldValuesByExtensionUrlAndKey(OrganizationId, lrsId,
 				"extensions", extensionId, extensionContextKey)) {
