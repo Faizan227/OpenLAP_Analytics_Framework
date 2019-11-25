@@ -2,36 +2,24 @@ package com.openlap.AnalyticsEngine.model;
 
 import org.hibernate.annotations.Type;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.util.Objects;
 
 @Entity
 public class Roles {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Type(type = "objectid")
-    String id;
-
     String name;
+
+    @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER)
+    private OpenLapUser openLapUser;
 
     public Roles() {
     }
 
-    public Roles(String id, String name) {
-        this.id = id;
+    public Roles(String name, OpenLapUser openLapUser) {
         this.name = name;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
+        this.openLapUser = openLapUser;
     }
 
     public String getName() {
@@ -47,20 +35,20 @@ public class Roles {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Roles roles = (Roles) o;
-        return id.equals(roles.id) &&
-                name.equals(roles.name);
+        return name.equals(roles.name) &&
+                openLapUser.equals(roles.openLapUser);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name);
+        return Objects.hash(name, openLapUser);
     }
 
     @Override
     public String toString() {
         return "Roles{" +
-                "id='" + id + '\'' +
-                ", name='" + name + '\'' +
+                "name='" + name + '\'' +
+                ", openLapUser=" + openLapUser +
                 '}';
     }
 }

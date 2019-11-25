@@ -3,8 +3,10 @@ package com.openlap.AnalyticsEngine.authconfig;
 import javax.annotation.Resource;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -38,6 +40,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		auth.userDetailsService(userDetailsService).passwordEncoder(encoder());
 	}
 
+
 	@Bean
 	public JwtAuthenticationFilter authenticationTokenFilterBean() {
 		return new JwtAuthenticationFilter();
@@ -52,7 +55,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				//.passwordParameter("password")
 	    .and()
 		.cors().and().csrf().disable().authorizeRequests()
-				.antMatchers("/v1/statements/**","/AnalyticsEngine/**","/frameworks/**","/AnalyticsMethod/**","/analyticsmodule/**","/v1/authenticate/*", "/v2/api-docs", "/swagger-resources/configuration/ui",
+				.antMatchers("/v1/statements/**","/AnalyticsEngine/**","/frameworks/**","/AnalyticsMethod/**","/analyticsmodule/**","/v1/authenticate/**", "/v2/api-docs", "/swagger-resources/configuration/ui",
 						"/swagger-resources","/import/csvdata","/generateVisualizationCode",
 						"/swagger-resources/configuration/security", "/swagger-ui.html", "/webjars/**")
 				.permitAll()

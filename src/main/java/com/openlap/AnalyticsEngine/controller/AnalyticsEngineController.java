@@ -13,8 +13,12 @@ import com.openlap.AnalyticsModules.model.AnalyticsGoal;
 import com.openlap.Visualizer.dtos.response.VisualizationLibraryDetailsResponse;
 import com.openlap.Visualizer.dtos.response.VisualizationLibrariesDetailsResponse;
 
+import com.openlap.Visualizer.model.VisualizationLibrary;
 import de.rwthaachen.openlap.dataset.OpenLAPColumnConfigData;
+import de.rwthaachen.openlap.dataset.OpenLAPDataSet;
 import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
+import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
+import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -82,15 +86,15 @@ public class AnalyticsEngineController {
     @RequestMapping(value = {"/GetVisualizations/", "/GetVisualizations"}, method = RequestMethod.GET)
     public
     @ResponseBody
-    VisualizationLibrariesDetailsResponse GetAllVisualizations(@RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
+    List<VisualizationLibrary> GetAllVisualizations(@RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
         return analyticsEngineService.getAllVisualizations(request);
     }
 
     @RequestMapping(value = {"/GetVisualizationMethods/", "/GetVisualizationMethods"}, method = RequestMethod.GET)
     public
     @ResponseBody
-    VisualizationLibraryDetailsResponse GetVisualizationMethods(@RequestParam String frameworkId, @RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
-        return analyticsEngineService.getVisualizationsMethods(frameworkId, request);
+    VisualizationLibrary GetVisualizationMethods(@RequestParam String libraryid, @RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
+        return analyticsEngineService.getVisualizationsMethods(libraryid, request);
     }
 
     @RequestMapping(value = {"/GetQuestions/", "/GetQuestions"}, method = RequestMethod.GET)
@@ -188,6 +192,7 @@ public class AnalyticsEngineController {
         return analyticsEngineService.UserRegistration(openLapUser);
     }
 
+
     @RequestMapping(value = "/login", method = RequestMethod.POST)
     public
     @ResponseBody
@@ -266,4 +271,24 @@ public class AnalyticsEngineController {
         return analyticsEngineService.getQuestionRequestCode(questionId, request);
     }
 
+    @RequestMapping(value = {"/getallactivites"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallactivities() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallactivities();
+    }
+
+    @RequestMapping(value = {"/getallverbs"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallverbs() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallverbs();
+    }
+
+    @RequestMapping(value = {"/getallplatforms"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getallplatforms() throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getallplatforms();
+    }
 }

@@ -23,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.List;
 
 /**
  * A Spring controller which exposes an API for the client to upload new VisualizationFrameworks as well as
@@ -63,10 +64,9 @@ public class VisualizationFrameworkController {
     }
 
     @RequestMapping(value = "/{idOfLibrary}", method = RequestMethod.GET)
-    public VisualizationLibraryDetailsResponse getLibraryDetails(@PathVariable String idOfLibrary) {
-        VisualizationLibraryDetailsResponse response = new VisualizationLibraryDetailsResponse();
-        response.setVisualizationLibrary(visualizationFrameworkService.findVisualizationLibraryById(idOfLibrary));
-        return response;
+    public VisualizationLibrary getLibraryDetails(@PathVariable String idOfLibrary) {
+
+        return visualizationFrameworkService.findVisualizationLibraryById(idOfLibrary);
 
     }
 
@@ -141,10 +141,8 @@ public class VisualizationFrameworkController {
     }
 
     @RequestMapping(value = "/list", method = RequestMethod.GET)
-    public VisualizationLibrariesDetailsResponse getVisualizationLibraries() {
-        VisualizationLibrariesDetailsResponse visualizationLibrariesDetailsResponse = new VisualizationLibrariesDetailsResponse();
-        visualizationLibrariesDetailsResponse.setVisualizationLibraries(visualizationFrameworkService.findAllVisualizationLibraries());
-        return visualizationLibrariesDetailsResponse;
+    public List<VisualizationLibrary> getVisualizationLibraries() {
+        return visualizationFrameworkService.findAllVisualizationLibraries();
     }
 
     @ExceptionHandler(VisualizationLibraryUploadException.class)

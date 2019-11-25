@@ -3,7 +3,7 @@ package com.openlap.AnalyticsEngine.model;
 import org.hibernate.annotations.Type;
 
 import javax.persistence.*;
-import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -12,24 +12,19 @@ import java.util.Set;
 public class OpenLapUser {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Type(type = "objectid")
-    String id;
+    private String email;
 
-    String email;
+    private String password;
 
-    String password;
+    private String confirmpassword;
 
-    String confirmpassword;
+    private String firstname;
 
-    String firstname;
+    private String lastname;
 
-    String lastname;
+    @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER, mappedBy = "openLapUser")
+    private Set<Roles> roles = new HashSet<>();
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER)
-    private List<Roles> roles;
-
-    //Set roles;
 
     public OpenLapUser() {
     }
@@ -42,12 +37,13 @@ public class OpenLapUser {
         this.lastname = lastname;
     }
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
+    public OpenLapUser(String email, String password, String confirmpassword, String firstname, String lastname, Set<Roles> roles) {
+        this.email = email;
+        this.password = password;
+        this.confirmpassword = confirmpassword;
+        this.firstname = firstname;
+        this.lastname = lastname;
+        this.roles = roles;
     }
 
     public String getEmail() {
@@ -90,11 +86,11 @@ public class OpenLapUser {
         this.confirmpassword = confirmpassword;
     }
 
-    public List<Roles> getRoles() {
+    public Set<Roles> getRoles() {
         return roles;
     }
 
-    public void setRoles(List<Roles> roles) {
+    public void setRoles(Set<Roles> roles) {
         this.roles = roles;
     }
 
@@ -103,28 +99,28 @@ public class OpenLapUser {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         OpenLapUser that = (OpenLapUser) o;
-        return id.equals(that.id) &&
-                email.equals(that.email) &&
+        return  email.equals(that.email) &&
                 password.equals(that.password) &&
                 confirmpassword.equals(that.confirmpassword) &&
                 firstname.equals(that.firstname) &&
-                lastname.equals(that.lastname) ;
+                lastname.equals(that.lastname) &&
+                roles.equals(that.roles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, email, password, confirmpassword, firstname, lastname);
+        return Objects.hash(email, password, confirmpassword, firstname, lastname, roles);
     }
 
     @Override
     public String toString() {
         return "OpenLapUser{" +
-                "id='" + id + '\'' +
                 ", email='" + email + '\'' +
                 ", password='" + password + '\'' +
                 ", confirmpassword='" + confirmpassword + '\'' +
                 ", firstname='" + firstname + '\'' +
                 ", lastname='" + lastname + '\'' +
+                ", roles=" + roles +
                 '}';
     }
 }

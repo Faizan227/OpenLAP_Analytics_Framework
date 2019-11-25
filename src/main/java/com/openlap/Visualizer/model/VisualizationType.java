@@ -34,6 +34,12 @@ public class VisualizationType {
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER)
     private VisualizationDataTransformerMethod visualizationDataTransformerMethod;
 
+    public VisualizationType(String implementingClass, String name, VisualizationDataTransformerMethod visualizationDataTransformerMethod) {
+        this.implementingClass = implementingClass;
+        this.name = name;
+        this.visualizationDataTransformerMethod = visualizationDataTransformerMethod;
+    }
+
     public VisualizationType(String implementingClass, String name, VisualizationDataTransformerMethod visualizationDataTransformerMethod, VisualizationLibrary visualizationLibrary) {
         this.implementingClass = implementingClass;
         this.name = name;

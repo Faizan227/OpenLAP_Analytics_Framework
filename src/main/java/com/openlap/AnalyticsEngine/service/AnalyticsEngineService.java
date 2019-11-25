@@ -21,6 +21,7 @@ import com.openlap.OpenLAPAnalyaticsFramework;
 import com.openlap.Visualizer.dtos.request.GenerateVisualizationCodeRequest;
 import com.openlap.Visualizer.dtos.request.ValidateVisualizationTypeConfigurationRequest;
 import com.openlap.Visualizer.dtos.response.*;
+import com.openlap.Visualizer.model.VisualizationLibrary;
 import com.openlap.Visualizer.model.VisualizationType;
 import core.AnalyticsMethod;
 import core.exceptions.AnalyticsMethodInitializationException;
@@ -31,6 +32,7 @@ import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
 import de.rwthaachen.openlap.visualizer.core.dtos.response.ValidateVisualizationMethodConfigurationResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.types.ObjectId;
+import org.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +42,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -70,6 +73,9 @@ public class AnalyticsEngineService {
 
     @Autowired
     public StatementServiceImp statementServiceImp;
+
+    @Autowired
+    public ActivityServiceImp activityServiceImp;
 
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
@@ -446,8 +452,8 @@ public class AnalyticsEngineService {
                 //Applying the analytics method
                 OpenLAPDataSet analyzedDataSet = null;
                 try {
-                    AnalyticsMethodsClassPathLoader classloaderPath = analyticsMethodsService.getFolderNameFromResources();
-                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"),classloaderPath);
+                    AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get("0"),classPathLoader);
                     String rawMethodParams = previewRequest.getMethodInputParams().containsKey("0") ? previewRequest.getMethodInputParams().get("0") : "";
                     Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
 
@@ -623,7 +629,7 @@ public class AnalyticsEngineService {
                     try {
                         AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
 
-                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(indicatorName), classPathLoader);
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(indicatorName),classPathLoader);
                         String rawMethodParams = previewRequest.getMethodInputParams().containsKey(indicatorName) ? previewRequest.getMethodInputParams().get(indicatorName) : "";
 
                         Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
@@ -810,7 +816,7 @@ public class AnalyticsEngineService {
                     OpenLAPDataSet singleAnalyzedDataSet = null;
                     try {
                         AnalyticsMethodsClassPathLoader classPathLoader = analyticsMethodsService.getFolderNameFromResources();
-                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(datasetId), classPathLoader);
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(previewRequest.getAnalyticsMethodId().get(datasetId),classPathLoader);
                         String rawMethodParams = previewRequest.getMethodInputParams().containsKey(datasetId) ? previewRequest.getMethodInputParams().get(datasetId) : "";
                         Map<String, String> methodParams = rawMethodParams.isEmpty() ? new HashMap<>() : mapper.readValue(rawMethodParams, new TypeReference<HashMap<String,String>>() {});
 
@@ -1217,16 +1223,16 @@ public class AnalyticsEngineService {
         return allMethods;
     }
 
-    public VisualizationLibrariesDetailsResponse getAllVisualizations(HttpServletRequest request) {
+    public List<VisualizationLibrary> getAllVisualizations(HttpServletRequest request) {
 
         String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         ObjectMapper mapper = new ObjectMapper();
 
-        VisualizationLibrariesDetailsResponse allVis;
+        List<VisualizationLibrary> allVis;
 
         try {
             String visualizationsJSON = performGetRequest(baseUrl + "/frameworks/list");
-            allVis = mapper.readValue(visualizationsJSON,  mapper.getTypeFactory().constructCollectionType(List.class, VisualizationLibrariesDetailsResponse.class));
+            allVis = mapper.readValue(visualizationsJSON,  mapper.getTypeFactory().constructCollectionType(List.class, VisualizationLibrary.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
             return null;
@@ -1235,15 +1241,15 @@ public class AnalyticsEngineService {
         return allVis;
     }
 
-    public VisualizationLibraryDetailsResponse getVisualizationsMethods(String frameworkId, HttpServletRequest request) {
+    public VisualizationLibrary getVisualizationsMethods(String libraryid, HttpServletRequest request) {
         String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         ObjectMapper mapper = new ObjectMapper();
 
-        VisualizationLibraryDetailsResponse visMethods;
+        VisualizationLibrary visMethods;
 
         try {
-            String visualizationsJSON = performGetRequest(baseUrl + "/frameworks/" + frameworkId);
-            visMethods = mapper.readValue(visualizationsJSON,  mapper.getTypeFactory().constructCollectionType(List.class, VisualizationLibraryDetailsResponse.class));
+            String visualizationsJSON = performGetRequest(baseUrl + "/frameworks/" + libraryid);
+            visMethods = mapper.readValue(visualizationsJSON,  mapper.getTypeFactory().constructCollectionType(List.class, VisualizationLibrary.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
             return null;
@@ -1556,11 +1562,10 @@ public class AnalyticsEngineService {
     public List<OpenLAPColumnConfigData> getAnalyticsMethodInputs(String id, HttpServletRequest request) {
         String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         List<OpenLAPColumnConfigData> methodInputs = null;
-
         try {
             ObjectMapper mapper = new ObjectMapper();
 
-            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethods/"+id+"/getInputPorts");
+            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethod/AnalyticsMethods/"+id+"/getInputPorts");
             methodInputs = mapper.readValue(methodInputsJSON, mapper.getTypeFactory().constructCollectionType(List.class, OpenLAPColumnConfigData.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
@@ -1577,7 +1582,7 @@ public class AnalyticsEngineService {
         try {
             ObjectMapper mapper = new ObjectMapper();
 
-            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethods/"+id+"/getOutputPorts");
+            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethod//AnalyticsMethods/"+id+"/getOutputPorts");
             methodInputs = mapper.readValue(methodInputsJSON, mapper.getTypeFactory().constructCollectionType(List.class, OpenLAPColumnConfigData.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
@@ -1594,7 +1599,7 @@ public class AnalyticsEngineService {
         try {
             ObjectMapper mapper = new ObjectMapper();
 
-            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethods/"+id+"/getDynamicParams");
+            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethod/AnalyticsMethods/"+id+"/getDynamicParams");
             methodParams = mapper.readValue(methodInputsJSON, mapper.getTypeFactory().constructCollectionType(List.class, OpenLAPDynamicParam.class));
             Collections.sort(methodParams, (OpenLAPDynamicParam o1, OpenLAPDynamicParam o2) -> (o1.getTitle().compareTo(o2.getTitle())));
         } catch (Exception exc) {
@@ -1701,17 +1706,37 @@ public class AnalyticsEngineService {
 
     public OpenLapUser UserRegistration(OpenLapUser user){
 
-        OpenLapUser openLapUser = new OpenLapUser();
-        openLapUser.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        openLapUser.setEmail(user.getEmail());
-        openLapUser.setConfirmpassword(bCryptPasswordEncoder.encode(user.getConfirmpassword()));
-        openLapUser.setFirstname(user.getFirstname());
-        openLapUser.setLastname(user.getLastname());
-        em.getTransaction().begin();
-        em.persist(openLapUser);
-        em.flush();
-        em.getTransaction().commit();
-        return openLapUser;
+        OpenLapUser openlapUser= em.find(OpenLapUser.class, user.getEmail());
+        if (openlapUser != null)
+        {
+            throw new UsernameNotFoundException("Email Already Exist");
+        }
+            OpenLapUser openLapUser = new OpenLapUser();
+            openLapUser.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+            openLapUser.setEmail(user.getEmail());
+            openLapUser.setConfirmpassword(bCryptPasswordEncoder.encode(user.getConfirmpassword()));
+            openLapUser.setFirstname(user.getFirstname());
+            openLapUser.setLastname(user.getLastname());
+            openLapUser.setRoles(user.getRoles());
+            em.getTransaction().begin();
+            em.persist(openLapUser);
+            em.flush();
+            em.getTransaction().commit();
+            return openLapUser;
+        }
+
+    public OpenLAPDataSet getallactivities() throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet allactivies = activityServiceImp.getActivities(organizationId, lrsId);
+        return allactivies;
+    }
+
+    public OpenLAPDataSet getallverbs() throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet allactivies = statementServiceImp.getAllVerbsFromStatements(organizationId, lrsId);
+        return allactivies;
+    }
+    public OpenLAPDataSet getallplatforms() throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet allplatforms = statementServiceImp.getallplatforms(organizationId, lrsId);
+        return allplatforms;
     }
 
 /*    public UserDetails loadUserByUsername(String email) {

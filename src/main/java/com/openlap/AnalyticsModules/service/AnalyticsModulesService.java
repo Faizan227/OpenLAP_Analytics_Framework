@@ -120,7 +120,7 @@ public class AnalyticsModulesService {
     }
 
     public List<Triad> getTriadsByUser(String userName) {
-        String query = "From Triad Where createdBy = "+userName+" ";
+        String query = "from Triad where createdBy = "+userName+" ";
         List<Triad> triad = em.createQuery(query).getResultList();
         return triad;
     }

@@ -24,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import javax.persistence.Query;
 import javax.transaction.TransactionManager;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -66,16 +67,23 @@ public class VisualizationFrameworkService {
     }
 
     /**
-     * @param visualizationLibraryId The id of the VisualizationLibrary to retrieve
+     * @param idOfLibrary The id of the VisualizationLibrary to retrieve
      * @return The VisualizationLibrary represented by the provided id
      * @throws VisualizationLibraryNotFoundException when the framework was not found
      */
-    public VisualizationLibrary findVisualizationLibraryById(String visualizationLibraryId) throws VisualizationLibraryNotFoundException {
+    public VisualizationLibrary findVisualizationLibraryById(String idOfLibrary) throws VisualizationLibraryNotFoundException {
 
-        VisualizationLibrary visualizationLibrary = em.find(VisualizationLibrary.class, visualizationLibraryId);
+        VisualizationLibrary visualizationLibrary = em.find(VisualizationLibrary.class, idOfLibrary);
 
         return visualizationLibrary;
     }
+
+    /*public List<VisualizationType> findallvisualizationtype(String id){
+        String query = "From VisualizationType v JOIN v.visualizationLibrary  vl where vl.id= "+id+"";
+        List<VisualizationType> visualizationTypes = em.createQuery(query, VisualizationType.class).getResultList();
+        return  visualizationTypes;
+
+    }*/
 
     /**
      * @param idOfType The id of the VisualizationType to retrieve

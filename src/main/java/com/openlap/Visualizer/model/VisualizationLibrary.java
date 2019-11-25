@@ -35,7 +35,7 @@ public class VisualizationLibrary {
     //@Column(nullable = false)
     String frameworkLocation;
 
-    @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER, mappedBy="visualizationLibrary")
+    @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY, mappedBy="visualizationLibrary")
     private List<VisualizationType> visualizationTypes = new ArrayList<>();
 
 
