@@ -77,14 +77,6 @@ public class VisualizationFrameworkService {
 
         return visualizationLibrary;
     }
-
-    /*public List<VisualizationType> findallvisualizationtype(String id){
-        String query = "From VisualizationType v JOIN v.visualizationLibrary  vl where vl.id= "+id+"";
-        List<VisualizationType> visualizationTypes = em.createQuery(query, VisualizationType.class).getResultList();
-        return  visualizationTypes;
-
-    }*/
-
     /**
      * @param idOfType The id of the VisualizationType to retrieve
      * @return The VisualizationType represented by the provided id

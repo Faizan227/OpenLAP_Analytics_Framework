@@ -93,7 +93,7 @@ public class AnalyticsEngineController {
     @RequestMapping(value = {"/GetVisualizationMethods/", "/GetVisualizationMethods"}, method = RequestMethod.GET)
     public
     @ResponseBody
-    VisualizationLibrary GetVisualizationMethods(@RequestParam String libraryid, @RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
+    List<VisualizationLibrary> GetVisualizationMethods(@RequestParam String libraryid, @RequestParam Map<String, String> allRequestParams, HttpServletRequest request) {
         return analyticsEngineService.getVisualizationsMethods(libraryid, request);
     }
 

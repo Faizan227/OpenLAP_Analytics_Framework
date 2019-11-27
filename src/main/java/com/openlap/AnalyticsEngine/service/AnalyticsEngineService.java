@@ -22,14 +22,11 @@ import com.openlap.Visualizer.dtos.request.GenerateVisualizationCodeRequest;
 import com.openlap.Visualizer.dtos.request.ValidateVisualizationTypeConfigurationRequest;
 import com.openlap.Visualizer.dtos.response.*;
 import com.openlap.Visualizer.model.VisualizationLibrary;
-import com.openlap.Visualizer.model.VisualizationType;
 import core.AnalyticsMethod;
 import core.exceptions.AnalyticsMethodInitializationException;
-import de.rwthaachen.openlap.analyticsmodules.model.AnalyticsMethodEntry;
 import de.rwthaachen.openlap.dataset.*;
 import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
 import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
-import de.rwthaachen.openlap.visualizer.core.dtos.response.ValidateVisualizationMethodConfigurationResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.types.ObjectId;
 import org.json.JSONException;
@@ -239,7 +236,7 @@ public class AnalyticsEngineService {
 
         List<Triad> triads = null;
         try {
-            String triadsJSON = performGetRequest(baseUrl + "/AnalyticsModules/Triads/");
+            String triadsJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/");
             triads = mapper.readValue(triadsJSON, mapper.getTypeFactory().constructCollectionType(List.class, Triad.class));
         } catch (Exception exc) {
             throw new ItemNotFoundException("No indicator found", "1");
@@ -1156,7 +1153,7 @@ public class AnalyticsEngineService {
         Triad triad;
 
         try {
-            String triadJSON = performGetRequest(baseUrl + "/AnalyticsModules/Triads/" + triadId);
+            String triadJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/" + triadId);
             triad = mapper.readValue(triadJSON, Triad.class);
         } catch (Exception exc) {
             throw new ItemNotFoundException("Indicator with triad id '" + triadId + "' not found.", "1");
@@ -1241,11 +1238,11 @@ public class AnalyticsEngineService {
         return allVis;
     }
 
-    public VisualizationLibrary getVisualizationsMethods(String libraryid, HttpServletRequest request) {
+    public List<VisualizationLibrary> getVisualizationsMethods(String libraryid, HttpServletRequest request) {
         String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
         ObjectMapper mapper = new ObjectMapper();
 
-        VisualizationLibrary visMethods;
+        List<VisualizationLibrary> visMethods;
 
         try {
             String visualizationsJSON = performGetRequest(baseUrl + "/frameworks/" + libraryid);
@@ -1266,7 +1263,7 @@ public class AnalyticsEngineService {
         List<AnalyticsGoal> allGoals;
 
         try {
-            String goalsJSON = performGetRequest(baseUrl + "/AnalyticsModule/AnalyticsGoals/");
+            String goalsJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModule/AnalyticsGoals/");
             allGoals = mapper.readValue(goalsJSON, mapper.getTypeFactory().constructCollectionType(List.class, AnalyticsGoal.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
@@ -1286,7 +1283,7 @@ public class AnalyticsEngineService {
         List<AnalyticsGoal> allGoals;
 
         try {
-            String goalsJSON = performGetRequest(baseUrl + "/AnalyticsModules/ActiveAnalyticsGoals/");
+            String goalsJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/ActiveAnalyticsGoals/");
             allGoals = mapper.readValue(goalsJSON, mapper.getTypeFactory().constructCollectionType(List.class, AnalyticsGoal.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
@@ -1309,7 +1306,7 @@ public class AnalyticsEngineService {
 
             String saveGoalRequestJSON = mapper.writeValueAsString(newGoal);
 
-            AnalyticsGoal savedGoal = performJSONPostRequest(baseUrl + "/AnalyticsModules/AnalyticsGoals/", saveGoalRequestJSON, AnalyticsGoal.class);
+            AnalyticsGoal savedGoal = performJSONPostRequest(baseUrl + "/analyticsmodule/AnalyticsModules/AnalyticsGoals/", saveGoalRequestJSON, AnalyticsGoal.class);
 
             return savedGoal;
         } catch (Exception exc) {
@@ -1332,7 +1329,7 @@ public class AnalyticsEngineService {
 
         try {
 
-            String saveGoalResponseJSON = performPutRequest(baseUrl + "/AnalyticsModules/AnalyticsGoals/"+goalId+"/"+setStatus, null);
+            String saveGoalResponseJSON = performPutRequest(baseUrl + "/analyticsmodule/AnalyticsModules/AnalyticsGoals/"+goalId+"/"+setStatus, null);
             AnalyticsGoal returnedGoal = mapper.readValue(saveGoalResponseJSON, AnalyticsGoal.class);
 
             return returnedGoal;
@@ -1439,7 +1436,7 @@ public class AnalyticsEngineService {
                 triad.setParameters(indicatorRequest.getParameters());
                 String triadJSON = triad.toString();
 
-                Triad savedTriad = performJSONPostRequest(baseUrl + "/AnalyticsModules/Triads/", triadJSON, Triad.class);
+                Triad savedTriad = performJSONPostRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/", triadJSON, Triad.class);
 
                 triads.add(savedTriad);
                 em.getTransaction().begin();
@@ -1582,7 +1579,7 @@ public class AnalyticsEngineService {
         try {
             ObjectMapper mapper = new ObjectMapper();
 
-            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethod//AnalyticsMethods/"+id+"/getOutputPorts");
+            String methodInputsJSON = performGetRequest(baseUrl + "/AnalyticsMethod/AnalyticsMethods/"+id+"/getOutputPorts");
             methodInputs = mapper.readValue(methodInputsJSON, mapper.getTypeFactory().constructCollectionType(List.class, OpenLAPColumnConfigData.class));
         } catch (Exception exc) {
             System.out.println(exc.getMessage());
@@ -1642,7 +1639,7 @@ public class AnalyticsEngineService {
         IndicatorSaveResponse indicatorResponse = new IndicatorSaveResponse();
 
         try {
-            String triadJSON = performGetRequest(baseUrl + "/AnalyticsModules/Triads/" + triadId);
+            String triadJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/" + triadId);
             triad = mapper.readValue(triadJSON, Triad.class);
         } catch (Exception exc) {
             indicatorResponse.setIndicatorSaved(false);

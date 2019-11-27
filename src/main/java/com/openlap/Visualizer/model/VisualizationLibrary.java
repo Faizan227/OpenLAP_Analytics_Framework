@@ -1,5 +1,6 @@
 package com.openlap.Visualizer.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.Type;
 
@@ -12,6 +13,7 @@ import java.util.*;
  * @author Faizan Riaz
  */
 @Entity
+@JsonIgnoreProperties
 public class VisualizationLibrary {
 
     //@GeneratedValue(strategy = GenerationType.TABLE,generator="sequence_generator")
@@ -35,19 +37,12 @@ public class VisualizationLibrary {
     //@Column(nullable = false)
     String frameworkLocation;
 
-    @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY, mappedBy="visualizationLibrary")
-    private List<VisualizationType> visualizationTypes = new ArrayList<>();
+    @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.EAGER, mappedBy="visualizationLibrary")
+    private List<VisualizationType> visualizationTypes;
 
 
     public VisualizationLibrary() {
-    }
-
-    public VisualizationLibrary(String name, String creator, String description, String frameworkLocation, List<VisualizationType> visualizationTypes) {
-        this.name = name;
-        this.creator = creator;
-        this.description = description;
-        this.frameworkLocation = frameworkLocation;
-        this.visualizationTypes = visualizationTypes;
+        visualizationTypes = new ArrayList<>();
     }
 
     public VisualizationLibrary(String name, String creator, String description, String frameworkLocation) {
@@ -55,7 +50,17 @@ public class VisualizationLibrary {
         this.creator = creator;
         this.description = description;
         this.frameworkLocation = frameworkLocation;
+        this.visualizationTypes = new ArrayList<>();
     }
+
+/*
+    public VisualizationLibrary(String name, String creator, String description, String frameworkLocation) {
+        this.name = name;
+        this.creator = creator;
+        this.description = description;
+        this.frameworkLocation = frameworkLocation;
+    }
+*/
 
     public String getId() {
         return id;
@@ -96,6 +101,7 @@ public class VisualizationLibrary {
     public void setFrameworkLocation(String frameworkLocation) {
         this.frameworkLocation = frameworkLocation;
     }
+
 
     public List<VisualizationType> getVisualizationTypes() {
         return visualizationTypes;
