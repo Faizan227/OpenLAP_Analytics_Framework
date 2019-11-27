@@ -2,7 +2,6 @@ package com.openlap.AnalyticsEngine.controller;
 
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.openlap.AnalyticsEngine.dto.LoginUser;
 import com.openlap.AnalyticsEngine.dto.Request.IndicatorPreviewRequest;
 import com.openlap.AnalyticsEngine.dto.Request.QuestionSaveRequest;
 import com.openlap.AnalyticsEngine.dto.Response.*;
@@ -10,8 +9,6 @@ import com.openlap.AnalyticsEngine.model.OpenLapUser;
 import com.openlap.AnalyticsEngine.service.AnalyticsEngineService;
 import com.openlap.AnalyticsMethods.model.AnalyticsMethods;
 import com.openlap.AnalyticsModules.model.AnalyticsGoal;
-import com.openlap.Visualizer.dtos.response.VisualizationLibraryDetailsResponse;
-import com.openlap.Visualizer.dtos.response.VisualizationLibrariesDetailsResponse;
 
 import com.openlap.Visualizer.model.VisualizationLibrary;
 import de.rwthaachen.openlap.dataset.OpenLAPColumnConfigData;
@@ -40,6 +37,23 @@ public class AnalyticsEngineController {
 
     @Autowired
     private AuthenticationManager authenticationManager;
+
+    @RequestMapping(value = {"/GetIndicatorDataHQL/", "/GetIndicatorDataHQL"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    String GetIndicatorDataHQL(
+            @RequestParam(value = "tid", required = true) String triadID,
+            @RequestParam Map<String, String> allRequestParams,
+            HttpServletRequest request) {
+
+        String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+
+        try {
+            return analyticsEngineService.executeIndicatorHQL(allRequestParams, baseUrl);
+        } catch (Exception exc) {
+            return exc.getMessage();
+        }
+    }
 
     @RequestMapping(value = {"/GetGoals/", "/GetAllGoals"}, method = RequestMethod.GET)
     public

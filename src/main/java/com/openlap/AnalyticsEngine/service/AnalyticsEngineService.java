@@ -1,5 +1,6 @@
 package com.openlap.AnalyticsEngine.service;
 
+import com.arjuna.ats.jta.transaction.Transaction;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -29,6 +30,7 @@ import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
 import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.types.ObjectId;
+import org.hibernate.Session;
 import org.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +50,7 @@ import protostream.com.google.gson.Gson;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
+import javax.persistence.Query;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.TransactionManager;
 import java.io.*;
@@ -63,6 +66,9 @@ public class AnalyticsEngineService {
     Gson gson = new Gson();
     @Value("${indicatorExecutionURL}")
     private String indicatorExecutionURL;
+
+    @Value("${visualizerURL}")
+    String visualizerURL;
 
     private ObjectId organizationId = new ObjectId("5d669b0f06edcb1328d5e8b9");
 
@@ -90,7 +96,415 @@ public class AnalyticsEngineService {
 
     @Autowired
     private AnalyticsMethodsService analyticsMethodsService;
+    public String executeIndicatorHQL(Map<String, String> params, String baseUrl) {
+        boolean performCache = true;
+        boolean isPersonalIndicator = false;
+        long indicatorExecutionStartTime = System.currentTimeMillis();
+        String userHashId = params.containsKey("rid") ? params.get("rid") : null;
 
+        long localExecutionCount = executionCount++;
+
+        //log.info("[Execute-Start],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", ""));
+
+        String triadId = params.get("tid");
+
+        String divWidth = params.containsKey("width") ? params.get("width") : "500";
+        params.put("width", "xxxwidthxxx");
+
+        String divHeight = params.containsKey("height") ? params.get("height") : "350";
+        params.put("height", "xxxheightxxx");
+
+
+
+        TriadCache triadCache = performCache ? getCacheByTriadId(triadId,userHashId.toUpperCase()) : null;
+
+        if(triadCache == null) {
+
+            ObjectMapper mapper = new ObjectMapper();
+
+            Triad triad;
+
+            try {
+                String triadJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/" + params.getOrDefault("tid", ""));
+                triad = mapper.readValue(triadJSON, Triad.class);
+            } catch (Exception exc) {
+                log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:tid-parse,code:unknown,msg:"+exc.getMessage());
+                throw new ItemNotFoundException("Indicator with id '" + params.getOrDefault("tid", "") + "' not found.", "1");
+            }
+
+            if (triad == null) {
+                log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:tid-search,code:tid-notfound");
+                throw new ItemNotFoundException("Indicator with id '" + params.getOrDefault("tid", "") + "' not found.", "1");
+            }
+
+            OpenLAPDataSet analyzedDataSet = null;
+
+            if(triad.getIndicatorReference().getIndicatorType().equals("simple")) {
+
+                Indicator curInd = getIndicatorById(triad.getIndicatorReference().getIndicators().get("0").getId());
+
+                if (curInd == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:get-query,code:query-notfound");
+                    throw new ItemNotFoundException("Indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "' not found.", "1");
+                }
+
+                //Replacing the courseid in the query with the actual coursenumber coming from the request code.
+                String curIndQuery = curInd.getQueries().get("0");
+
+                if(curIndQuery.contains("xxxridxxx")) {
+                    isPersonalIndicator = true;
+                    if(userHashId == null) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:" + localExecutionCount + ",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis() - indicatorExecutionStartTime) + ",step:rid,code:rid-missing");
+                        throw new ItemNotFoundException("This indicator require a user code to generate personalized data which is not provided. Please contact OpenLAP admins with indicator id : " + triad.getId() + ".", "1");
+                    }
+                    else{
+                        curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
+                    }
+                }
+
+                OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get("0"), 0);
+
+                if (queryDataSet == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:" + localExecutionCount + ",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis() - indicatorExecutionStartTime) + ",step:query,code:query-data-empty");
+                    throw new ItemNotFoundException("No data found for the indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "'.", "1");
+                }
+
+
+                //Applying the analytics method
+                try {
+                    AnalyticsMethodsClassPathLoader analyticsMethodsClassPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId(),analyticsMethodsClassPathLoader);
+                    Map<String, String> methodParams = triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getAdditionalParams();
+
+                    method.initialize(queryDataSet, triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get("0"), methodParams);
+                    analyzedDataSet = method.execute();
+                } catch (AnalyticsMethodInitializationException amexc) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-initialize,code:unknown,msg:"+amexc.getMessage());
+                    throw new ItemNotFoundException(amexc.getMessage(), "1");
+                } catch (Exception exc) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-execute,code:unknown,msg:"+exc.getMessage());
+                    throw new ItemNotFoundException(exc.getMessage(), "1");
+                }
+
+
+                if (analyzedDataSet == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:analysis,code:analysis-data-empty");
+                    throw new ItemNotFoundException("No data returned from the analytics methods with id '" + triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId() + "'.", "1");
+                }
+            } else if(triad.getIndicatorReference().getIndicatorType().equals("composite")){
+
+                Indicator curInd = getIndicatorById(triad.getIndicatorReference().getIndicators().get("0").getId());
+
+                if (curInd == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:get-query,code:query-notfound");
+                    throw new ItemNotFoundException("Indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "' not found.", "1");
+                }
+
+                Set<String> indicatorNames = curInd.getQueries().keySet();
+                OpenLAPPortConfig methodToVisConfig = triad.getAnalyticsMethodToVisualizationMapping();
+
+                boolean addIndicatorNameColumn = false;
+                String columnId = null;
+                for(OpenLAPColumnConfigData outputConfig : methodToVisConfig.getOutputColumnConfigurationData()){
+                    if(outputConfig.getId().equals("indicator_names"))
+                        addIndicatorNameColumn = true;
+                    else
+                        columnId = outputConfig.getId();
+                }
+
+                for(String indicatorName: indicatorNames){
+
+                    String curIndQuery = curInd.getQueries().get(indicatorName);
+                    OpenLAPPortConfig queryToMethodConfig = triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get(indicatorName);
+
+                    //curIndQuery = curIndQuery.replace("CourseRoomID", courseID);
+                    if(curIndQuery.contains("xxxridxxx")) {
+                        isPersonalIndicator = true;
+                        if(userHashId == null) {
+                            log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:rid,code:rid-missing");
+                            throw new ItemNotFoundException("This indicator require a user code to generate personalized data which is not provided. Please contact OpenLAP admins with indicator id : " + triad.getId() + ".", "1");
+                        }
+                        else{
+                            curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
+                        }
+                    }
+
+                    OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, queryToMethodConfig, 0);
+
+                    if (queryDataSet == null) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:query,code:query-data-empty");
+                        throw new ItemNotFoundException("No data found for the indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "'.", "1");
+                    }
+
+                    //try { log.info("Query data: " + mapper.writeValueAsString(queryDataSet)); } catch (Exception exc) {}
+
+                    //Applying the analytics method
+                    OpenLAPDataSet singleAnalyzedDataSet = null;
+                    try {
+                        AnalyticsMethodsClassPathLoader analyticsMethodsClassPathLoader =analyticsMethodsService.getFolderNameFromResources();
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(triad.getAnalyticsMethodReference().getAnalyticsMethods().get(indicatorName).getId(),analyticsMethodsClassPathLoader);
+                        Map<String, String> methodParams = triad.getAnalyticsMethodReference().getAnalyticsMethods().get(indicatorName).getAdditionalParams();
+
+                        method.initialize(queryDataSet, queryToMethodConfig, methodParams);
+                        singleAnalyzedDataSet = method.execute();
+                    } catch (AnalyticsMethodInitializationException amexc) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-initialize,code:unknown,msg:"+amexc.getMessage());
+                        throw new ItemNotFoundException(amexc.getMessage(), "1");
+                    } catch (Exception exc) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-execute,code:unknown,msg:"+exc.getMessage());
+                        throw new ItemNotFoundException(exc.getMessage(), "1");
+                    }
+
+                    if (singleAnalyzedDataSet == null) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:analysis,code:analysis-data-empty");
+                        throw new ItemNotFoundException("No data returned from the analytics methods with id '" + triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId() + "'.", "1");
+                    }
+
+                    //try { log.info("Analyzed data: " + mapper.writeValueAsString(singleAnalyzedDataSet)); } catch (Exception exc) {}
+
+                    //Merging analyzed dataset
+                    if(analyzedDataSet == null) {
+                        analyzedDataSet = singleAnalyzedDataSet;
+
+                        if(addIndicatorNameColumn)
+                            if(!analyzedDataSet.getColumns().containsKey("indicator_names"))
+                                try {
+                                    analyzedDataSet.addOpenLAPDataColumn(OpenLAPDataColumnFactory.createOpenLAPDataColumnOfType("indicator_names", OpenLAPColumnDataType.Text, true, "Indicator Names", "Names of the indicators combines together to form the composite."));
+                                } catch (OpenLAPDataColumnException e) { e.printStackTrace(); }
+                    }
+                    else {
+                        List<OpenLAPColumnConfigData> columnConfigDatas = singleAnalyzedDataSet.getColumnsConfigurationData();
+
+                        for(OpenLAPColumnConfigData columnConfigData : columnConfigDatas)
+                            analyzedDataSet.getColumns().get(columnConfigData.getId()).getData().addAll(singleAnalyzedDataSet.getColumns().get(columnConfigData.getId()).getData());
+                    }
+
+                    if(addIndicatorNameColumn) {
+                        int dataSize = singleAnalyzedDataSet.getColumns().get(columnId).getData().size();
+
+                        for(int i=0;i<dataSize;i++)
+                            analyzedDataSet.getColumns().get("indicator_names").getData().add(indicatorName);
+                    }
+                }
+
+                //try { log.info("Combined Analyzed data: " + mapper.writeValueAsString(analyzedDataSet)); } catch (Exception exc) {}
+
+                } else if(triad.getIndicatorReference().getIndicatorType().equals("multianalysis")){
+
+                Indicator curInd = getIndicatorById(triad.getIndicatorReference().getIndicators().get("0").getId());
+
+                if (curInd == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:get-query,code:query-notfound");
+                    throw new ItemNotFoundException("Indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "' not found.", "1");
+                }
+
+                Set<String> indicatorIds = curInd.getQueries().keySet();
+                Map<String, OpenLAPDataSet> analyzedDatasetMap = new HashMap<>();
+
+                for(String indicatorId: indicatorIds){
+                    if(indicatorId.equals("0")) // skipping 0 since it is the id for the 2nd level analytics method and it does not have a query
+                        continue;
+
+                    String curIndQuery = curInd.getQueries().get(indicatorId);
+                    OpenLAPPortConfig queryToMethodConfig = triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get(indicatorId);
+
+                    if(curIndQuery.contains("xxxridxxx")) {
+                        isPersonalIndicator = true;
+                        if(userHashId == null) {
+                            log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:rid,code:rid-missing");
+                            throw new ItemNotFoundException("This indicator require a user code to generate personalized data which is not provided. Please contact OpenLAP admins with indicator id : " + triad.getId() + ".", "1");
+                        }
+                        else{
+                            curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
+                        }
+                    }
+
+                    OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, queryToMethodConfig, 0);
+
+                    if (queryDataSet == null) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:query,code:query-data-empty");
+                        throw new ItemNotFoundException("No data found for the indicator with id '" + triad.getIndicatorReference().getIndicators().get("0").getId() + "'.", "1");
+                    }
+
+                    //try { log.info("Query data: " + mapper.writeValueAsString(queryDataSet)); } catch (Exception exc) {}
+
+                    //Applying the analytics method
+                    OpenLAPDataSet singleAnalyzedDataSet = null;
+                    try {
+                        AnalyticsMethodsClassPathLoader analyticsMethodsClassPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                        AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(triad.getAnalyticsMethodReference().getAnalyticsMethods().get(indicatorId).getId(), analyticsMethodsClassPathLoader);
+                        Map<String, String> methodParams = triad.getAnalyticsMethodReference().getAnalyticsMethods().get(indicatorId).getAdditionalParams();
+                        method.initialize(queryDataSet, queryToMethodConfig, methodParams);
+                        singleAnalyzedDataSet = method.execute();
+                    } catch (AnalyticsMethodInitializationException exc) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-initialize,code:unknown,msg:"+exc.getMessage());
+                        throw new ItemNotFoundException(exc.getMessage(), "1");
+                    } catch (Exception exc) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-execute,code:unknown,msg:"+exc.getMessage());
+                        throw new ItemNotFoundException(exc.getMessage(), "1");
+                    }
+
+                    if (singleAnalyzedDataSet == null) {
+                        log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:analysis,code:analysis-data-empty");
+                        throw new ItemNotFoundException("No data returned from the analytics methods with id '" + triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId() + "'.", "1");
+                    }
+
+                    analyzedDatasetMap.put(indicatorId, singleAnalyzedDataSet);
+
+                    //try { log.info("Analyzed data: " + mapper.writeValueAsString(singleAnalyzedDataSet)); } catch (Exception exc) {}
+                }
+
+                //mergning dataset
+                List<OpenLAPDataSetMergeMapping> mergeMappings = triad.getIndicatorReference().getDataSetMergeMappingList();
+                OpenLAPDataSet mergedDataset = null;
+                String mergeStatus = "";
+
+                while(mergeMappings.size()>0){
+
+                    OpenLAPDataSet firstDataset = null;
+                    OpenLAPDataSet secondDataset = null;
+
+                    for(OpenLAPDataSetMergeMapping mergeMapping: mergeMappings){
+                        String key1 = mergeMapping.getIndRefKey1();
+                        String key2 = mergeMapping.getIndRefKey2();
+
+                        int dashCountKey1 = StringUtils.countMatches(key1, "-"); //Merged keys will always be in key1
+
+                        if(dashCountKey1 == 0) {
+                            firstDataset = analyzedDatasetMap.get(key1);
+                            secondDataset = analyzedDatasetMap.get(key2);
+                        } else {
+                            if(!mergeStatus.isEmpty() && key1.equals(mergeStatus)){
+                                firstDataset = mergedDataset;
+                                secondDataset = analyzedDatasetMap.get(key2);
+                                key1 = "(" + key1 + ")";
+                            } else
+                                continue;
+                        }
+
+                        OpenLAPDataSet processedDataset = mergeOpenLAPDataSets(firstDataset, secondDataset, mergeMapping);
+                        if(processedDataset != null) {
+                            mergedDataset = processedDataset;
+                            mergeStatus = key1 + "-" + key2;
+                            mergeMappings.remove(mergeMapping);
+                        }
+
+                        break;
+                    }
+
+                }
+
+                //try { log.info("Merged Analyzed data: " + mapper.writeValueAsString(mergedDataset)); } catch (Exception exc) {}
+
+
+                //Applying the final analysis whose configuration is stored always with id "0"
+                OpenLAPPortConfig finalQueryToMethodConfig = triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get("0");
+                try {
+                    AnalyticsMethodsClassPathLoader analyticsMethodsClassPathLoader = analyticsMethodsService.getFolderNameFromResources();
+                    AnalyticsMethod method = analyticsMethodsService.loadAnalyticsMethodInstance(triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId(), analyticsMethodsClassPathLoader);
+                    Map<String, String> methodParams = triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getAdditionalParams();
+                    method.initialize(mergedDataset, finalQueryToMethodConfig, methodParams);
+                    analyzedDataSet = method.execute();
+                } catch (AnalyticsMethodInitializationException amexc) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-initialize,code:unknown,msg:"+amexc.getMessage());
+                    throw new ItemNotFoundException(amexc.getMessage(), "1");
+                } catch (Exception exc) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:method-execute,code:unknown,msg:"+exc.getMessage());
+                    throw new ItemNotFoundException(exc.getMessage(), "1");
+                }
+
+                if (analyzedDataSet == null) {
+                    log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:analysis,code:final-analysis-data-empty");
+                    throw new ItemNotFoundException("No data returned from the analytics methods with id '" + triad.getAnalyticsMethodReference().getAnalyticsMethods().get("0").getId() + "'.", "1");
+                }
+            }
+
+            //Visualizing the analyzed data
+            String indicatorCode = "";
+            try {
+
+                Map<String, Object> additionalParams = new HashMap<String, Object>();
+
+                for (Map.Entry<String, String> entry : params.entrySet()) {
+                    additionalParams.put(entry.getKey(), entry.getValue());
+                }
+
+                GenerateVisualizationCodeRequest visualRequest = new GenerateVisualizationCodeRequest();
+                visualRequest.setLibraryId(triad.getVisualizationReference().getLibraryId());
+                //visualRequest.setFrameworkName(triad.getVisualizationReference().getFrameworkName());
+                visualRequest.setTypeId(triad.getVisualizationReference().getTypeId());
+                //visualRequest.setMethodName(triad.getVisualizationReference().getMethodName());
+                visualRequest.setDataSet(analyzedDataSet);
+                visualRequest.setPortConfiguration(triad.getAnalyticsMethodToVisualizationMapping());
+                visualRequest.setParams(additionalParams);
+
+                String visualRequestJSON = mapper.writeValueAsString(visualRequest);
+                GenerateVisualizationCodeResponse visualResponse = performJSONPostRequest(baseUrl + "/generateVisualizationCode", visualRequestJSON, GenerateVisualizationCodeResponse.class);
+
+                indicatorCode = visualResponse.getVisualizationCode();
+            } catch (Exception exc) {
+                log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:vis-execute,code:unknown,msg:"+exc.getMessage());
+                throw new ItemNotFoundException(exc.getMessage(), "1");
+            }
+
+            String encodedCode = encodeURIComponent(indicatorCode);
+
+            if(performCache){
+                if(isPersonalIndicator)
+                    saveTriadCache(triadId, userHashId.toUpperCase(), encodedCode);
+                else
+                    saveTriadCache(triadId, encodedCode);
+            }
+
+
+            encodedCode = encodedCode.replace("xxxwidthxxx", divWidth);
+            encodedCode = encodedCode.replace("xxxheightxxx", divHeight);
+
+            log.info("[Execute-New],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.get("tid") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime));
+
+            return encodedCode;
+        }
+        else{
+            String encodedCode = triadCache.getCode();
+
+            encodedCode = encodedCode.replace("xxxwidthxxx", divWidth);
+            encodedCode = encodedCode.replace("xxxheightxxx", divHeight);
+
+            log.info("[Execute-Cache],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.get("tid") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime));
+
+            return encodedCode;
+        }
+    }
+
+    public IndicatorSaveResponse getIndicatorRequestCode(String triadId, HttpServletRequest request) {
+
+        String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
+        ObjectMapper mapper = new ObjectMapper();
+
+        Triad triad = null;
+        IndicatorSaveResponse indicatorResponse = new IndicatorSaveResponse();
+
+        try {
+            String triadJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/" + triadId);
+            triad = mapper.readValue(triadJSON, Triad.class);
+        } catch (Exception exc) {
+            indicatorResponse.setIndicatorSaved(false);
+            indicatorResponse.setErrorMessage("Indicator with triad id '" + triadId + "' not found.");
+            return indicatorResponse;
+        }
+
+        if (triad == null) {
+            indicatorResponse.setIndicatorSaved(false);
+            indicatorResponse.setErrorMessage("Indicator with triad id '" + triadId + "' not found.");
+        }
+        else {
+            indicatorResponse.setIndicatorSaved(true);
+            indicatorResponse.setIndicatorRequestCode(getIndicatorRequestCode(triad));
+            indicatorResponse.setErrorMessage(triad.getIndicatorReference().getIndicators().get("0").getIndicatorName());
+        }
+
+        return indicatorResponse;
+    }
     //region Questions
     public Question getQuestionById(String id){
         Question result =em.find(Question.class, id);
@@ -100,7 +514,33 @@ public class AnalyticsEngineService {
             return result;
         }
     }
+    public OpenLAPDataSet executeIndicatorQuery(String queryString, OpenLAPPortConfig methodMapping, int rowCount) {
+        OpenLAPDataSet ds;
 
+        try {
+
+            Query query = em.createQuery(queryString);
+
+            if(rowCount>0)
+                query.setMaxResults(rowCount);
+
+            List<?>  dataList = query.getResultList();
+
+            ds = transformIndicatorQueryToOpenLAPDatSet(dataList, methodMapping);
+
+            em.getTransaction().commit();
+        }
+        catch (Exception exc){
+            em.getTransaction().rollback();
+            ds = null;
+        }
+        finally {
+            if (em.getTransaction() != null)
+                em.getTransaction().commit();
+        }
+
+        return ds;
+    }
     public Question saveQuestion(Question analyticsEngineQuestion) {
 
         //Question questionToSave = new Question(question.getName(), question.getIndicatorCount(), question.getGoal(), question.getIndicators());
@@ -1468,9 +1908,8 @@ public class AnalyticsEngineService {
 
     private String getIndicatorRequestCode(Triad triad) {
         String visFrameworkScript = "";
-        String visualizationURL= "http://localhost:8090/visualizer";
         try{
-            visFrameworkScript = performGetRequest(visualizationURL + "/frameworks/" + triad.getVisualizationReference().getLibraryId() + "/methods/"+ triad.getVisualizationReference().getTypeId() + "/frameworkScript");
+            visFrameworkScript = performGetRequest(visualizerURL + "/frameworks/" + triad.getVisualizationReference().getLibraryId() + "/methods/"+ triad.getVisualizationReference().getTypeId() + "/frameworkScript");
             visFrameworkScript = decodeURIComponent(visFrameworkScript);
         } catch (Exception exc) {
             throw new ItemNotFoundException(exc.getMessage(),"1");
@@ -1628,36 +2067,6 @@ public class AnalyticsEngineService {
         }
 
         return methodInputs;
-    }
-
-    public IndicatorSaveResponse getIndicatorRequestCode(String triadId, HttpServletRequest request) {
-
-        String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
-        ObjectMapper mapper = new ObjectMapper();
-
-        Triad triad = null;
-        IndicatorSaveResponse indicatorResponse = new IndicatorSaveResponse();
-
-        try {
-            String triadJSON = performGetRequest(baseUrl + "/analyticsmodule/AnalyticsModules/Triads/" + triadId);
-            triad = mapper.readValue(triadJSON, Triad.class);
-        } catch (Exception exc) {
-            indicatorResponse.setIndicatorSaved(false);
-            indicatorResponse.setErrorMessage("Indicator with triad id '" + triadId + "' not found.");
-            return indicatorResponse;
-        }
-
-        if (triad == null) {
-            indicatorResponse.setIndicatorSaved(false);
-            indicatorResponse.setErrorMessage("Indicator with triad id '" + triadId + "' not found.");
-        }
-        else {
-            indicatorResponse.setIndicatorSaved(true);
-            indicatorResponse.setIndicatorRequestCode(getIndicatorRequestCode(triad));
-            indicatorResponse.setErrorMessage(triad.getIndicatorReference().getIndicators().get("0").getIndicatorName());
-        }
-
-        return indicatorResponse;
     }
 
     public QuestionSaveResponse getQuestionRequestCode(String questionId, HttpServletRequest request) {

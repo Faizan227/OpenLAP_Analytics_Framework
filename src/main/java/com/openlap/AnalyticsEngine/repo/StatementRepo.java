@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.repository.Query;
 import com.mongodb.DBObject;
 import com.openlap.AnalyticsEngine.dto.Verb;
 import com.openlap.AnalyticsEngine.model.Statement;
-
+import org.springframework.security.core.parameters.P;
 
 
 public interface StatementRepo extends MongoRepository<Statement, String> {
@@ -21,6 +21,7 @@ public interface StatementRepo extends MongoRepository<Statement, String> {
 
 	@Query(value = "{'statement.context' : {$exists: true}}", fields = "{'statement.context.platform':1}")
 	List<Platforms> findallplatformsByOrganizationAndLrs(ObjectId organizationIdObject, ObjectId lrsIdObject);
+
 	/*
 	 * @Query(value = "{'$or':[{'$and':?0},{'$and':?1}]}", fields = "?2")
 	 * List<Statement> findDataByCustomQuery(DBObject queryOptionalObject, DBObject
