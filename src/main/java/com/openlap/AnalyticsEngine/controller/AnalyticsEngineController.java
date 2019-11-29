@@ -15,6 +15,7 @@ import de.rwthaachen.openlap.dataset.OpenLAPColumnConfigData;
 import de.rwthaachen.openlap.dataset.OpenLAPDataSet;
 import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
 import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
+import org.bson.types.ObjectId;
 import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -291,7 +292,27 @@ public class AnalyticsEngineController {
     OpenLAPDataSet getallactivities() throws OpenLAPDataColumnException, JSONException {
         return analyticsEngineService.getallactivities();
     }
+    @RequestMapping(value = {"/getactivitiyextenionid"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getactivitiyextenionid( @RequestParam String type) throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getactivitiyextenionid(type);
+    }
 
+    @RequestMapping(value = {"/getkeysbyContextualidandactivitytype"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getkeysbyContextualidandactivitytype(@RequestParam String extensionId) throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getkeysbyContextualidandactivitytype(extensionId);
+    }
+
+    @RequestMapping(value = {"/getActivitiesExtensionContextValues"}, method = RequestMethod.GET)
+    public
+    @ResponseBody
+    OpenLAPDataSet getActivitiesExtensionContextValues( @RequestParam("extensionId") String extensionId,
+                                                       @RequestParam("extensionContextKey") String extensionContextKey) throws OpenLAPDataColumnException, JSONException {
+        return analyticsEngineService.getActivitiesExtensionContextValues(extensionId,extensionContextKey);
+    }
     @RequestMapping(value = {"/getallverbs"}, method = RequestMethod.GET)
     public
     @ResponseBody

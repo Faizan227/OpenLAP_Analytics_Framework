@@ -2,6 +2,7 @@ package com.openlap.AnalyticsEngine.service;
 
 import com.arjuna.ats.jta.transaction.Transaction;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.openlap.AnalyticsEngine.Exceptions.BadRequestException;
@@ -1680,7 +1681,7 @@ public class AnalyticsEngineService {
 
     public List<VisualizationLibrary> getVisualizationsMethods(String libraryid, HttpServletRequest request) {
         String baseUrl = String.format("%s://%s:%d", request.getScheme(), request.getServerName(), request.getServerPort());
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
 
         List<VisualizationLibrary> visMethods;
 
@@ -2052,7 +2053,7 @@ public class AnalyticsEngineService {
         List<OpenLAPColumnConfigData> methodInputs = null;
 
         try {
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper().configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
 
 
             String methodInputsJSON = performGetRequest(baseUrl + "/frameworks/"+frameworkId+"/methods/"+methodId+"/configuration");
@@ -2136,6 +2137,22 @@ public class AnalyticsEngineService {
         return allactivies;
     }
 
+    public OpenLAPDataSet getactivitiyextenionid(String type) throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet activityextensionid = activityServiceImp.getActivitiesExtensionid(organizationId, lrsId, type);
+        return activityextensionid;
+    }
+
+    public OpenLAPDataSet getActivitiesExtensionContextValues(String extensionId, String extensionContextKey) throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet activityextensionvalues = activityServiceImp.getActivitiesExtensionContextValues(organizationId, lrsId, extensionId, extensionContextKey);
+        return activityextensionvalues;
+    }
+
+
+    public OpenLAPDataSet getkeysbyContextualidandactivitytype(String extensionId) throws OpenLAPDataColumnException, JSONException {
+        OpenLAPDataSet activitykeysbyextensionid = activityServiceImp.getkeysbyContextualidandactivitytype(organizationId, lrsId, extensionId);
+        return activitykeysbyextensionid;
+    }
+
     public OpenLAPDataSet getallverbs() throws OpenLAPDataColumnException, JSONException {
         OpenLAPDataSet allactivies = statementServiceImp.getAllVerbsFromStatements(organizationId, lrsId);
         return allactivies;
@@ -2145,21 +2162,7 @@ public class AnalyticsEngineService {
         return allplatforms;
     }
 
-/*    public UserDetails loadUserByUsername(String email) {
-        // TODO Auto-generated method stub
-        OpenLapUser user = em.find(OpenLapUser.class, email);
-        if (user == null) {
-            logger.error("Invalid username or password.");
-            throw new UsernameNotFoundException("Invalid username or password.");
-        }
-        return new org.springframework.security.core.userdetails.User(user.getEmail(), user.getPassword(),
-                getAuthority(user.getRoles()));
-    }
-    private Collection<? extends GrantedAuthority> getAuthority(Collection<Roles> roles){
-        return roles.stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName()))
-                .collect(Collectors.toList());
-    }*/
+
     //HTTP Section
 
     public String performGetRequest(String url) throws Exception {

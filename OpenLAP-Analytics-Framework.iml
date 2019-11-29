@@ -16,6 +16,7 @@
     <facet type="jpa" name="JPA">
       <configuration>
         <setting name="validation-enabled" value="true" />
+        <setting name="provider-name" value="Hibernate" />
         <datasource-mapping>
           <factory-entry name="OpenLAP" value="1364e334-bac8-46cc-93d5-cfa41dbd1521" />
           <factory-entry name="entityManagerFactory" />

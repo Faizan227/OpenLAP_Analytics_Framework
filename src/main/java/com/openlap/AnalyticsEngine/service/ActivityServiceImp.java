@@ -33,6 +33,7 @@ public class ActivityServiceImp implements ActivityService {
 		ArrayList<Object> listOfActivityDescription = new ArrayList<Object>();
 		ArrayList<String> listOfActivityExtensionIds = new ArrayList<String>();
 		ArrayList<String> listOfActivityExtensionContextKeys = new ArrayList<String>();
+		ArrayList<String> listOfActivityExtensionContextValues = new ArrayList<String>();
 		for (Activitiy activity : activityRepo.findActivitiesByOrganizationAndLrs(OrganizationId, lrsId)) {
 			if (activity.getType() != null) {
 				listOfActivityTypes.add(activity.getType());
@@ -93,10 +94,14 @@ public class ActivityServiceImp implements ActivityService {
 						while (contextKey.hasNext()) {
 							// loop to get the dynamic key
 							String DynamiccontextKey = (String) contextKey.next();
+							String contextvalues = contextualObject.getString(DynamiccontextKey);
 
 							// get the value of the dynamic key
 							if (!listOfActivityExtensionContextKeys.contains(DynamiccontextKey)) {
 								listOfActivityExtensionContextKeys.add(DynamiccontextKey);
+							}
+							if (!listOfActivityExtensionContextValues.contains(contextvalues)) {
+								listOfActivityExtensionContextValues.add(contextvalues);
 							}
 
 						}
@@ -117,6 +122,76 @@ public class ActivityServiceImp implements ActivityService {
 				listOfActivityExtensionIds);
 		dataConveter.SetOpenLapDataColumn("ActivityExtentionContextKeys", OpenLAPColumnDataType.Text, true,
 				listOfActivityExtensionContextKeys);
+		dataConveter.SetOpenLapDataColumn("ActivityExtentionContextValues", OpenLAPColumnDataType.Text, true,
+				listOfActivityExtensionContextValues);
+		return dataConveter.getDataSet();
+	}
+
+	public OpenLAPDataSet getActivitiesExtensionid(ObjectId OrganizationId, ObjectId lrsId,
+															  String type) throws OpenLAPDataColumnException, JSONException {
+		ArrayList<String> listOfActivityExtensionIds = new ArrayList<String>();
+		for (Activitiy activity : activityRepo.findContextualidbyactivitytype(OrganizationId, lrsId, type)){
+
+				if (activity.getExtensions() != null) {
+					String activityExtension = new Gson().toJson(activity.getExtensions());
+
+					JSONObject activityExtensionObject = new JSONObject(activityExtension);
+					Iterator<?> extentionKey = activityExtensionObject.keys();
+					while (extentionKey.hasNext()) {
+						// loop to get the dynamic key
+						String DynamicextentionKey = (String) extentionKey.next();
+
+						// get the value of the dynamic key
+						if (!listOfActivityExtensionIds.contains(DynamicextentionKey)) {
+							listOfActivityExtensionIds.add(DynamicextentionKey);
+						}
+					}
+
+				}
+			}
+		OpenLapDataConverter dataConveter = new OpenLapDataConverter();
+		dataConveter.SetOpenLapDataColumn("extensionContextId", OpenLAPColumnDataType.Text, true,
+				listOfActivityExtensionIds);
+
+		return dataConveter.getDataSet();
+	}
+
+	public OpenLAPDataSet getkeysbyContextualidandactivitytype(ObjectId OrganizationId, ObjectId lrsId,
+												    String extensionId) throws OpenLAPDataColumnException, JSONException {
+		ArrayList<String> listOfActivityExtensionContextKeys = new ArrayList<>();
+		ArrayList<String> listOfExtensionContextValues = new ArrayList<>();
+		for (Activitiy activity : activityRepo.findkeysbyContextualidandactivitytype(OrganizationId, lrsId, "extensions", extensionId)){
+			if (activity.getExtensions() != null) {
+				String activityExtension = new Gson().toJson(activity.getExtensions());
+				JSONObject activityExtensionObject = new JSONObject(activityExtension);
+				Iterator<?> extentionKey = activityExtensionObject.keys();
+				while (extentionKey.hasNext()) {
+					// loop to get the dynamic key
+					String DynamicextentionKey = (String) extentionKey.next();
+
+					// get the value of the dynamic key
+					if (DynamicextentionKey != null) {
+						JSONObject contextualObject = activityExtensionObject.getJSONObject(DynamicextentionKey);
+						Iterator<?> contextKey = contextualObject.keys();
+						while (contextKey.hasNext()) {
+							// loop to get the dynamic key
+							String DynamiccontextKey = (String) contextKey.next();
+
+							// get the value of the dynamic key
+							if (!listOfActivityExtensionContextKeys.contains(DynamiccontextKey)) {
+								listOfActivityExtensionContextKeys.add(DynamiccontextKey);
+							}
+
+						}
+					}
+
+				}
+			}
+		}
+		OpenLapDataConverter dataConveter = new OpenLapDataConverter();
+		dataConveter.SetOpenLapDataColumn("extensionContextKeys", OpenLAPColumnDataType.Text, true,
+				listOfActivityExtensionContextKeys);
+
 		return dataConveter.getDataSet();
 	}
 
