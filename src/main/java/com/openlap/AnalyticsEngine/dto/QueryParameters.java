@@ -14,7 +14,7 @@ public class QueryParameters implements Serializable {
 	public QueryParameters() {
     }
 
-	public Object getParametersToBeReturnedInResult() {
+    public Object getParametersToBeReturnedInResult() {
 		return parametersToBeReturnedInResult;
 	}
 

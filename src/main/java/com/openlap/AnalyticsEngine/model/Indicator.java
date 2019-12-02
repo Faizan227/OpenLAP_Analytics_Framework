@@ -1,6 +1,7 @@
 package com.openlap.AnalyticsEngine.model;
 
 
+import com.openlap.AnalyticsEngine.dto.QueryParameters;
 import com.openlap.AnalyticsModules.model.OpenLAPDataSetMergeMapping;
 import org.hibernate.annotations.Type;
 
@@ -26,17 +27,17 @@ public class Indicator {
     private String name;
 
     @Convert(converter = IndicatorQueryConverter.class)
-    private Map<String, String> queries;
+    private Map<String, QueryParameters> queries;
 
     //List<OpenLAPDataSetMergeMapping> dataSetMergeMappingList;
 
     String indicatorType;
 
     public Indicator() {
-        queries = new HashMap<String, String>();
+        queries = new HashMap<String, QueryParameters>();
     }
 
-    public Indicator(String type, String name, Map<String, String> queries,
+    public Indicator(String type, String name, Map<String, QueryParameters> queries,
                      List<OpenLAPDataSetMergeMapping> dataSetMergeMappingList, String indicatorType) {
         this.type = type;
         this.name = name;
@@ -85,11 +86,11 @@ public class Indicator {
         this.indicatorType = indicatorType;
     }
 
-    public Map<String, String> getQueries() {
+    public Map<String, QueryParameters> getQueries() {
         return queries;
     }
 
-    public void setQueries(Map<String, String> queries) {
+    public void setQueries(Map<String, QueryParameters> QueryParameters) {
         this.queries = queries;
     }
 

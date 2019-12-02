@@ -1,6 +1,6 @@
 package com.openlap.AnalyticsEngine.service;
 
-import com.arjuna.ats.jta.transaction.Transaction;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -31,7 +31,6 @@ import de.rwthaachen.openlap.dynamicparam.OpenLAPDynamicParam;
 import de.rwthaachen.openlap.exceptions.OpenLAPDataColumnException;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.types.ObjectId;
-import org.hibernate.Session;
 import org.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +50,6 @@ import protostream.com.google.gson.Gson;
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
 import javax.persistence.Persistence;
-import javax.persistence.Query;
 import javax.servlet.http.HttpServletRequest;
 import javax.transaction.TransactionManager;
 import java.io.*;
@@ -97,7 +95,7 @@ public class AnalyticsEngineService {
 
     @Autowired
     private AnalyticsMethodsService analyticsMethodsService;
-    public String executeIndicatorHQL(Map<String, String> params, String baseUrl) {
+    public String executeIndicatorHQL(Map<String, String> params, String baseUrl) throws OpenLAPDataColumnException, JSONException, JsonProcessingException {
         boolean performCache = true;
         boolean isPersonalIndicator = false;
         long indicatorExecutionStartTime = System.currentTimeMillis();
@@ -150,9 +148,9 @@ public class AnalyticsEngineService {
                 }
 
                 //Replacing the courseid in the query with the actual coursenumber coming from the request code.
-                String curIndQuery = curInd.getQueries().get("0");
+                QueryParameters curIndQuery = curInd.getQueries().get("0");
 
-                if(curIndQuery.contains("xxxridxxx")) {
+               /* if(curIndQuery.contains("xxxridxxx")) {
                     isPersonalIndicator = true;
                     if(userHashId == null) {
                         log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:" + localExecutionCount + ",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis() - indicatorExecutionStartTime) + ",step:rid,code:rid-missing");
@@ -161,7 +159,7 @@ public class AnalyticsEngineService {
                     else{
                         curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
                     }
-                }
+                }*/
 
                 OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get("0"), 0);
 
@@ -215,11 +213,11 @@ public class AnalyticsEngineService {
 
                 for(String indicatorName: indicatorNames){
 
-                    String curIndQuery = curInd.getQueries().get(indicatorName);
+                    QueryParameters curIndQuery = curInd.getQueries().get(indicatorName);
                     OpenLAPPortConfig queryToMethodConfig = triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get(indicatorName);
 
                     //curIndQuery = curIndQuery.replace("CourseRoomID", courseID);
-                    if(curIndQuery.contains("xxxridxxx")) {
+                    /*if(curIndQuery.contains("xxxridxxx")) {
                         isPersonalIndicator = true;
                         if(userHashId == null) {
                             log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:rid,code:rid-missing");
@@ -228,7 +226,7 @@ public class AnalyticsEngineService {
                         else{
                             curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
                         }
-                    }
+                    }*/
 
                     OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, queryToMethodConfig, 0);
 
@@ -306,10 +304,10 @@ public class AnalyticsEngineService {
                     if(indicatorId.equals("0")) // skipping 0 since it is the id for the 2nd level analytics method and it does not have a query
                         continue;
 
-                    String curIndQuery = curInd.getQueries().get(indicatorId);
+                    QueryParameters curIndQuery = curInd.getQueries().get(indicatorId);
                     OpenLAPPortConfig queryToMethodConfig = triad.getIndicatorToAnalyticsMethodMapping().getPortConfigs().get(indicatorId);
 
-                    if(curIndQuery.contains("xxxridxxx")) {
+                    /*if(curIndQuery.contains("xxxridxxx")) {
                         isPersonalIndicator = true;
                         if(userHashId == null) {
                             log.error("[Execute],user:"+(userHashId==null?"":userHashId)+",count:"+localExecutionCount+",tid:" + params.getOrDefault("tid", "") + ",time:" + (System.currentTimeMillis()-indicatorExecutionStartTime)+",step:rid,code:rid-missing");
@@ -318,7 +316,7 @@ public class AnalyticsEngineService {
                         else{
                             curIndQuery = curIndQuery.replace("xxxridxxx", userHashId.toUpperCase());
                         }
-                    }
+                    }*/
 
                     OpenLAPDataSet queryDataSet = executeIndicatorQuery(curIndQuery, queryToMethodConfig, 0);
 
@@ -515,30 +513,22 @@ public class AnalyticsEngineService {
             return result;
         }
     }
-    public OpenLAPDataSet executeIndicatorQuery(String queryString, OpenLAPPortConfig methodMapping, int rowCount) {
+    public OpenLAPDataSet executeIndicatorQuery(QueryParameters queryString, OpenLAPPortConfig methodMapping, int rowCount) throws OpenLAPDataColumnException, JSONException, JsonProcessingException {
         OpenLAPDataSet ds;
 
-        try {
 
-            Query query = em.createQuery(queryString);
+            OpenLAPDataSet query = statementServiceImp.getAllStatementsByCustomQuery(organizationId, lrsId, queryString);
 
-            if(rowCount>0)
+
+            /*if(rowCount>0)
+
                 query.setMaxResults(rowCount);
 
-            List<?>  dataList = query.getResultList();
+            List<?>  dataList = query.getResultList();*/
 
-            ds = transformIndicatorQueryToOpenLAPDatSet(dataList, methodMapping);
+            ds = transformIndicatorQueryToOpenLAPDatSet((List<?>) query, methodMapping);
 
-            em.getTransaction().commit();
-        }
-        catch (Exception exc){
-            em.getTransaction().rollback();
-            ds = null;
-        }
-        finally {
-            if (em.getTransaction() != null)
-                em.getTransaction().commit();
-        }
+
 
         return ds;
     }
@@ -1817,7 +1807,10 @@ public class AnalyticsEngineService {
                 Set<Map.Entry<String, QueryParameters>> querySet = indicatorRequest.getQueries().entrySet();
 
                 for (Map.Entry<String, QueryParameters> indQuery : querySet)
-                    ind.getQueries().put(indQuery.getKey(), String.valueOf(indQuery.getValue()));
+                    ind.getQueries().put(indQuery.getKey(), indQuery.getValue());
+
+                Indicator savedInd = saveIndicator(ind);
+                indicatorReference.getIndicators().put("0", new IndicatorEntry(savedInd.getId(), savedInd.getName()));
 
                 indicatorReference.setDataSetMergeMappingList(indicatorRequest.getDataSetMergeMappingList());
 
